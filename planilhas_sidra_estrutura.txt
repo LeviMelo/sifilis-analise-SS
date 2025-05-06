@@ -1,0 +1,872 @@
+=======================================================================
+Detailed Inspection for: table_6579 - EstimaPop Est. Pop. Res.
+=======================================================================
+
+--- 1. Overview ---
+Dimensions: 20 rows x 13 columns
+Glimpse:
+Rows: 20
+Columns: 13
+$ Fetched_Table_ID             <dbl> 6579, 6579, 6579, 6579, 6579, 6579, 6579, 6579, 6579, 6579, 6579, 6579, 65…
+$ Fetched_Table_Desc           <chr> "EstimaPop Est. Pop. Res.", "EstimaPop Est. Pop. Res.", "EstimaPop Est. Po…
+$ `Nível Territorial (Código)` <chr> "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6",…
+$ `Nível Territorial`          <chr> "Município", "Município", "Município", "Município", "Município", "Municípi…
+$ `Unidade de Medida (Código)` <chr> "45", "45", "45", "45", "45", "45", "45", "45", "45", "45", "45", "45", "4…
+$ `Unidade de Medida`          <chr> "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pessoas…
+$ Valor                        <dbl> 188988, 190999, 193103, 197520, 199964, 202390, 208447, 210521, 216108, 21…
+$ `Município (Código)`         <chr> "2700300", "2700300", "2700300", "2700300", "2700300", "2700300", "2700300…
+$ Município                    <chr> "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "A…
+$ `Ano (Código)`               <chr> "2001", "2002", "2003", "2004", "2005", "2006", "2008", "2009", "2011", "2…
+$ Ano                          <chr> "2001", "2002", "2003", "2004", "2005", "2006", "2008", "2009", "2011", "2…
+$ `Variável (Código)`          <chr> "9324", "9324", "9324", "9324", "9324", "9324", "9324", "9324", "9324", "9…
+$ Variável                     <chr> "População residente estimada", "População residente estimada", "População…
+
+
+--- 2. Key Identifiers ---
+Unique Years ('Ano'):
+ [1] "2001" "2002" "2003" "2004" "2005" "2006" "2008" "2009" "2011" "2012" "2013" "2014" "2015" "2016" "2017"
+[16] "2018" "2019" "2020" "2021" "2024"
+
+Unique Municipality Codes ('Município (Código)'):
+[1] "2700300"
+
+--- 3. Value Column ('Valor') Summary ---
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 188988  201784  222890  217712  231978  243661 
+
+--- 4. Variable and Unit ('Variável', 'Unidade de Medida') ---
+Variable / Unit Combinations Present:
+
+
+|Variável                     |Unidade de Medida | RowCount|
+|:----------------------------|:-----------------|--------:|
+|População residente estimada |Pessoas           |       20|
+
+--- 5. Potential Classifier Columns ---
+No additional potential classifier columns identified.
+
+
+
+=======================================================================
+Detailed Inspection for: table_9509 - CEMPRE Local Units & Enterprises (22)
+=======================================================================
+
+--- 1. Overview ---
+Dimensions: 8 rows x 13 columns
+Glimpse:
+Rows: 8
+Columns: 13
+$ Fetched_Table_ID             <dbl> 9509, 9509, 9509, 9509, 9509, 9509, 9509, 9509
+$ Fetched_Table_Desc           <chr> "CEMPRE Local Units & Enterprises (22)", "CEMPRE Local Units & Enterprises…
+$ `Nível Territorial (Código)` <chr> "6", "6", "6", "6", "6", "6", "6", "6"
+$ `Nível Territorial`          <chr> "Município", "Município", "Município", "Município", "Município", "Municípi…
+$ `Unidade de Medida (Código)` <chr> "1020", "1020", "45", "45", "45", "40", "1612", "38"
+$ `Unidade de Medida`          <chr> "Unidades", "Unidades", "Pessoas", "Pessoas", "Pessoas", "Mil Reais", "Sal…
+$ Valor                        <dbl> 7659.00, 7118.00, 54187.00, 45761.00, 45157.28, 1116231.00, 1.60, 1901.44
+$ `Município (Código)`         <chr> "2700300", "2700300", "2700300", "2700300", "2700300", "2700300", "2700300…
+$ Município                    <chr> "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "A…
+$ `Ano (Código)`               <chr> "2022", "2022", "2022", "2022", "2022", "2022", "2022", "2022"
+$ Ano                          <chr> "2022", "2022", "2022", "2022", "2022", "2022", "2022", "2022"
+$ `Variável (Código)`          <chr> "706", "367", "707", "708", "5944", "662", "1606", "10143"
+$ Variável                     <chr> "Número de unidades locais", "Número de empresas e outras organizações atu…
+
+
+--- 2. Key Identifiers ---
+Unique Years ('Ano'):
+[1] "2022"
+
+Unique Municipality Codes ('Município (Código)'):
+[1] "2700300"
+
+--- 3. Value Column ('Valor') Summary ---
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+      1.6    5813.9   26408.1  159752.0   47867.5 1116231.0 
+
+--- 4. Variable and Unit ('Variável', 'Unidade de Medida') ---
+Variable / Unit Combinations Present:
+
+
+|Variável                                          |Unidade de Medida | RowCount|
+|:-------------------------------------------------|:-----------------|--------:|
+|Número de empresas e outras organizações atuantes |Unidades          |        1|
+|Número de unidades locais                         |Unidades          |        1|
+|Pessoal assalariado médio                         |Pessoas           |        1|
+|Pessoal ocupado assalariado                       |Pessoas           |        1|
+|Pessoal ocupado total                             |Pessoas           |        1|
+|Salário médio mensal                              |Salários mínimos  |        1|
+|Salário médio mensal em reais                     |Reais             |        1|
+|Salários e outras remunerações                    |Mil Reais         |        1|
+
+--- 5. Potential Classifier Columns ---
+No additional potential classifier columns identified.
+
+
+
+=======================================================================
+Detailed Inspection for: table_1685 - CEMPRE Local Units & Enterprises (06-21)
+=======================================================================
+
+--- 1. Overview ---
+Dimensions: 128 rows x 13 columns
+Glimpse:
+Rows: 128
+Columns: 13
+$ Fetched_Table_ID             <dbl> 1685, 1685, 1685, 1685, 1685, 1685, 1685, 1685, 1685, 1685, 1685, 1685, 16…
+$ Fetched_Table_Desc           <chr> "CEMPRE Local Units & Enterprises (06-21)", "CEMPRE Local Units & Enterpri…
+$ `Nível Territorial (Código)` <chr> "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6",…
+$ `Nível Territorial`          <chr> "Município", "Município", "Município", "Município", "Município", "Municípi…
+$ `Unidade de Medida (Código)` <chr> "1020", "1020", "45", "45", "45", "40", "1612", "38", "1020", "1020", "45"…
+$ `Unidade de Medida`          <chr> "Unidades", "Unidades", "Pessoas", "Pessoas", "Pessoas", "Mil Reais", "Sal…
+$ Valor                        <dbl> 3057.00, 2959.00, 21770.00, 18332.00, 18104.15, 133132.00, 1.70, 565.67, 3…
+$ `Município (Código)`         <chr> "2700300", "2700300", "2700300", "2700300", "2700300", "2700300", "2700300…
+$ Município                    <chr> "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "A…
+$ `Ano (Código)`               <chr> "2006", "2006", "2006", "2006", "2006", "2006", "2006", "2006", "2007", "2…
+$ Ano                          <chr> "2006", "2006", "2006", "2006", "2006", "2006", "2006", "2006", "2007", "2…
+$ `Variável (Código)`          <chr> "706", "367", "707", "708", "5944", "662", "1606", "10143", "706", "367", …
+$ Variável                     <chr> "Número de unidades locais", "Número de empresas e outras organizações atu…
+
+
+--- 2. Key Identifiers ---
+Unique Years ('Ano'):
+ [1] "2006" "2007" "2008" "2009" "2010" "2011" "2012" "2013" "2014" "2015" "2016" "2017" "2018" "2019" "2020"
+[16] "2021"
+
+Unique Municipality Codes ('Município (Código)'):
+[1] "2700300"
+
+--- 3. Value Column ('Valor') Summary ---
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+     1.5   2661.0  11564.6  74921.4  36247.1 917391.0 
+
+--- 4. Variable and Unit ('Variável', 'Unidade de Medida') ---
+Variable / Unit Combinations Present:
+
+
+|Variável                                          |Unidade de Medida | RowCount|
+|:-------------------------------------------------|:-----------------|--------:|
+|Número de empresas e outras organizações atuantes |Unidades          |       16|
+|Número de unidades locais                         |Unidades          |       16|
+|Pessoal assalariado médio                         |Pessoas           |       16|
+|Pessoal ocupado assalariado                       |Pessoas           |       16|
+|Pessoal ocupado total                             |Pessoas           |       16|
+|Salário médio mensal                              |Salários mínimos  |       16|
+|Salário médio mensal em reais                     |Reais             |       16|
+|Salários e outras remunerações                    |Mil Reais         |       16|
+
+--- 5. Potential Classifier Columns ---
+No additional potential classifier columns identified.
+
+
+
+=======================================================================
+Detailed Inspection for: table_5938 - PIBmuni2010 GDP at Current Prices
+=======================================================================
+
+--- 1. Overview ---
+Dimensions: 920 rows x 13 columns
+Glimpse:
+Rows: 920
+Columns: 13
+$ Fetched_Table_ID             <dbl> 5938, 5938, 5938, 5938, 5938, 5938, 5938, 5938, 5938, 5938, 5938, 5938, 59…
+$ Fetched_Table_Desc           <chr> "PIBmuni2010 GDP at Current Prices", "PIBmuni2010 GDP at Current Prices", …
+$ `Nível Territorial (Código)` <chr> "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6",…
+$ `Nível Territorial`          <chr> "Município", "Município", "Município", "Município", "Município", "Municípi…
+$ `Unidade de Medida (Código)` <chr> "40", "2", "2", "2", "2", "2", "40", "2", "2", "2", "2", "2", "40", "2", "…
+$ `Unidade de Medida`          <chr> "Mil Reais", "%", "%", "%", "%", "%", "Mil Reais", "%", "%", "%", "%", "%"…
+$ Valor                        <dbl> 642115.00, 58.48, 40.82, 5.57, 0.33, 0.04, 64408.00, 87.91, 67.30, 6.87, 0…
+$ `Município (Código)`         <chr> "2700300", "2700300", "2700300", "2700300", "2700300", "2700300", "2700300…
+$ Município                    <chr> "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "A…
+$ `Ano (Código)`               <chr> "2002", "2002", "2002", "2002", "2002", "2002", "2002", "2002", "2002", "2…
+$ Ano                          <chr> "2002", "2002", "2002", "2002", "2002", "2002", "2002", "2002", "2002", "2…
+$ `Variável (Código)`          <chr> "37", "553", "552", "497", "530", "496", "543", "571", "570", "545", "551"…
+$ Variável                     <chr> "Produto Interno Bruto a preços correntes", "Participação do produto inter…
+
+
+--- 2. Key Identifiers ---
+Unique Years ('Ano'):
+ [1] "2002" "2003" "2004" "2005" "2006" "2007" "2008" "2009" "2010" "2011" "2012" "2013" "2014" "2015" "2016"
+[16] "2017" "2018" "2019" "2020" "2021"
+
+Unique Municipality Codes ('Município (Código)'):
+[1] "2700300"
+
+--- 3. Value Column ('Valor') Summary ---
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+      0       0      20  169859      67 5915938 
+
+--- 4. Variable and Unit ('Variável', 'Unidade de Medida') ---
+Variable / Unit Combinations Present:
+
+
+|Variável                                                                                                                                                                                                                                                                                                                      |Unidade de Medida | RowCount|
+|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-----------------|--------:|
+|Impostos, líquidos de subsídios, sobre produtos a preços correntes                                                                                                                                                                                                                                                            |Mil Reais         |       20|
+|Participação do produto interno bruto a preços correntes no produto interno bruto a preços correntes da grande região                                                                                                                                                                                                         |%                 |       20|
+|Participação do produto interno bruto a preços correntes no produto interno bruto a preços correntes da mesorregião geográfica                                                                                                                                                                                                |%                 |       20|
+|Participação do produto interno bruto a preços correntes no produto interno bruto a preços correntes da microrregião geográfica                                                                                                                                                                                               |%                 |       20|
+|Participação do produto interno bruto a preços correntes no produto interno bruto a preços correntes da unidade da federação                                                                                                                                                                                                  |%                 |       20|
+|Participação do produto interno bruto a preços correntes no produto interno bruto a preços correntes do Brasil                                                                                                                                                                                                                |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social no valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social da grande região                                                       |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social no valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social da mesorregião geográfica                                              |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social no valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social da microrregião geográfic                                              |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social no valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social da unidade da federação                                                |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social no valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social do Brasil                                                              |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social no valor adicionado bruto a preços correntes total                                                                                                                                          |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da agropecuária no valor adicionado bruto a preços correntes da agropecuária da grande região                                                                                                                                                                       |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da agropecuária no valor adicionado bruto a preços correntes da agropecuária da mesorregião geográfica                                                                                                                                                              |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da agropecuária no valor adicionado bruto a preços correntes da agropecuária da microrregião geográfica                                                                                                                                                             |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da agropecuária no valor adicionado bruto a preços correntes da agropecuária da unidade da federação                                                                                                                                                                |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da agropecuária no valor adicionado bruto a preços correntes da agropecuária do Brasil                                                                                                                                                                              |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da agropecuária no valor adicionado bruto a preços correntes total                                                                                                                                                                                                  |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da indústria no valor adicionado bruto a preços correntes da indústria da grande região                                                                                                                                                                             |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da indústria no valor adicionado bruto a preços correntes da indústria da mesorregião geográfica                                                                                                                                                                    |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da indústria no valor adicionado bruto a preços correntes da indústria da microrregião geográfica                                                                                                                                                                   |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da indústria no valor adicionado bruto a preços correntes da indústria da unidade da federação                                                                                                                                                                      |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da indústria no valor adicionado bruto a preços correntes da indústria do Brasil                                                                                                                                                                                    |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes da indústria no valor adicionado bruto a preços correntes total                                                                                                                                                                                                     |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, no valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, da grande região           |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, no valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, da mesorregião geográfica  |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, no valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, da microrregião geográfica |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, no valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, da unidade da federação    |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, no valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, do Brasil                  |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social, no valor adicionado bruto a preços correntes total                                                                                                                    |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes total no valor adicionado bruto a preços correntes total da grande região                                                                                                                                                                                           |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes total no valor adicionado bruto a preços correntes total da mesorregião geográfica                                                                                                                                                                                  |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes total no valor adicionado bruto a preços correntes total da microrregião geográfica                                                                                                                                                                                 |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes total no valor adicionado bruto a preços correntes total da unidade da federação                                                                                                                                                                                    |%                 |       20|
+|Participação do valor adicionado bruto a preços correntes total no valor adicionado bruto a preços correntes total do Brasil                                                                                                                                                                                                  |%                 |       20|
+|Participação dos impostos, líquidos de subsídios, sobre produtos a preços correntes nos impostos, líquidos de subsídios, sobre produtos a preços correntes da grande região                                                                                                                                                   |%                 |       20|
+|Participação dos impostos, líquidos de subsídios, sobre produtos a preços correntes nos impostos, líquidos de subsídios, sobre produtos a preços correntes da mesorregião geográfica                                                                                                                                          |%                 |       20|
+|Participação dos impostos, líquidos de subsídios, sobre produtos a preços correntes nos impostos, líquidos de subsídios, sobre produtos a preços correntes da microrregião geográfica                                                                                                                                         |%                 |       20|
+|Participação dos impostos, líquidos de subsídios, sobre produtos a preços correntes nos impostos, líquidos de subsídios, sobre produtos a preços correntes da unidade da federação                                                                                                                                            |%                 |       20|
+|Participação dos impostos, líquidos de subsídios, sobre produtos a preços correntes nos impostos, líquidos de subsídios, sobre produtos a preços correntes do Brasil                                                                                                                                                          |%                 |       20|
+|Produto Interno Bruto a preços correntes                                                                                                                                                                                                                                                                                      |Mil Reais         |       20|
+|Valor adicionado bruto a preços correntes da administração, defesa, educação e saúde públicas e seguridade social                                                                                                                                                                                                             |Mil Reais         |       20|
+|Valor adicionado bruto a preços correntes da agropecuária                                                                                                                                                                                                                                                                     |Mil Reais         |       20|
+|Valor adicionado bruto a preços correntes da indústria                                                                                                                                                                                                                                                                        |Mil Reais         |       20|
+|Valor adicionado bruto a preços correntes dos serviços, exclusive administração, defesa, educação e saúde públicas e seguridade social                                                                                                                                                                                        |Mil Reais         |       20|
+|Valor adicionado bruto a preços correntes total                                                                                                                                                                                                                                                                               |Mil Reais         |       20|
+
+--- 5. Potential Classifier Columns ---
+No additional potential classifier columns identified.
+
+
+
+=======================================================================
+Detailed Inspection for: table_9606 - CENSO 22/10 Pop. by Race/Age/Gender
+=======================================================================
+
+--- 1. Overview ---
+Dimensions: 9648 rows x 19 columns
+Glimpse:
+Rows: 9,648
+Columns: 19
+$ Fetched_Table_ID             <dbl> 9606, 9606, 9606, 9606, 9606, 9606, 9606, 9606, 9606, 9606, 9606, 9606, 96…
+$ Fetched_Table_Desc           <chr> "CENSO 22/10 Pop. by Race/Age/Gender", "CENSO 22/10 Pop. by Race/Age/Gende…
+$ `Nível Territorial (Código)` <chr> "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6",…
+$ `Nível Territorial`          <chr> "Município", "Município", "Município", "Município", "Município", "Municípi…
+$ `Unidade de Medida (Código)` <chr> "45", "45", "45", "45", "45", "45", "45", "45", "45", "45", "45", "45", "4…
+$ `Unidade de Medida`          <chr> "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pessoas…
+$ Valor                        <dbl> 214006, 17771, 3522, 278, 292, 322, 260, 290, 265, 282, 327, 296, 297, 301…
+$ `Município (Código)`         <chr> "2700300", "2700300", "2700300", "2700300", "2700300", "2700300", "2700300…
+$ Município                    <chr> "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "A…
+$ `Ano (Código)`               <chr> "2010", "2010", "2010", "2010", "2010", "2010", "2010", "2010", "2010", "2…
+$ Ano                          <chr> "2010", "2010", "2010", "2010", "2010", "2010", "2010", "2010", "2010", "2…
+$ `Variável (Código)`          <chr> "93", "93", "93", "93", "93", "93", "93", "93", "93", "93", "93", "93", "9…
+$ Variável                     <chr> "População residente", "População residente", "População residente", "Popu…
+$ `Cor ou raça (Código)`       <chr> "95251", "95251", "95251", "95251", "95251", "95251", "95251", "95251", "9…
+$ `Cor ou raça`                <chr> "Total", "Total", "Total", "Total", "Total", "Total", "Total", "Total", "T…
+$ `Sexo (Código)`              <chr> "6794", "6794", "6794", "6794", "6794", "6794", "6794", "6794", "6794", "6…
+$ Sexo                         <chr> "Total", "Total", "Total", "Total", "Total", "Total", "Total", "Total", "T…
+$ `Idade (Código)`             <chr> "100362", "93070", "6557", "93071", "93072", "93073", "93074", "93075", "9…
+$ Idade                        <chr> "Total", "0 a 4 anos", "Menos de 1 ano", "Menos de 1 mês", "1 mês", "2 mes…
+
+
+--- 2. Key Identifiers ---
+Unique Years ('Ano'):
+[1] "2010" "2022"
+
+Unique Municipality Codes ('Município (Código)'):
+[1] "2700300"
+
+--- 3. Value Column ('Valor') Summary ---
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+     0.00      0.06      1.64    620.71    131.00 234696.00       926 
+
+--- 4. Variable and Unit ('Variável', 'Unidade de Medida') ---
+Variable / Unit Combinations Present:
+
+
+|Variável                                        |Unidade de Medida | RowCount|
+|:-----------------------------------------------|:-----------------|--------:|
+|População residente                             |Pessoas           |     4824|
+|População residente - percentual do total geral |Percentual        |     4824|
+
+--- 5. Potential Classifier Columns ---
+Found potential classifiers: Cor ou raça (Código), Cor ou raça, Sexo (Código), Sexo, Idade (Código), Idade 
+
+--- Summary for Classifier: Cor ou raça (Código) ---
+Unique Values:
+[1] "95251" "2776"  "2777"  "2778"  "2779"  "2780" 
+
+Frequency Counts:
+
+
+|Cor ou raça (Código) | Count|
+|:--------------------|-----:|
+|2776                 |  1608|
+|2777                 |  1608|
+|2778                 |  1608|
+|2779                 |  1608|
+|2780                 |  1608|
+|95251                |  1608|
+
+--- Summary for Classifier: Cor ou raça ---
+Unique Values:
+[1] "Total"    "Branca"   "Preta"    "Amarela"  "Parda"    "Indígena"
+
+Frequency Counts:
+
+
+|Cor ou raça | Count|
+|:-----------|-----:|
+|Amarela     |  1608|
+|Branca      |  1608|
+|Indígena    |  1608|
+|Parda       |  1608|
+|Preta       |  1608|
+|Total       |  1608|
+
+--- Summary for Classifier: Sexo (Código) ---
+Unique Values:
+[1] "6794" "4"    "5"   
+
+Frequency Counts:
+
+
+|Sexo (Código) | Count|
+|:-------------|-----:|
+|4             |  3216|
+|5             |  3216|
+|6794          |  3216|
+
+--- Summary for Classifier: Sexo ---
+Unique Values:
+[1] "Total"    "Homens"   "Mulheres"
+
+Frequency Counts:
+
+
+|Sexo     | Count|
+|:--------|-----:|
+|Homens   |  3216|
+|Mulheres |  3216|
+|Total    |  3216|
+
+--- Summary for Classifier: Idade (Código) ---
+Unique Values:
+ [1] "100362" "93070"  "6557"   "93071"  "93072"  "93073"  "93074"  "93075"  "93076"  "93077"  "93078"  "93079" 
+[13] "93080"  "93081"  "93082"  "6558"   "6559"   "6560"   "6561"   "93084"  "6562"   "6563"   "6564"   "6565"  
+[25] "6566"  
+... (and 109 more unique values)
+
+Frequency Counts:
+
+
+|Idade (Código) | Count|
+|:--------------|-----:|
+|100362         |    72|
+|49108          |    72|
+|49109          |    72|
+|60040          |    72|
+|60041          |    72|
+|6557           |    72|
+|6558           |    72|
+|6559           |    72|
+|6560           |    72|
+|6561           |    72|
+|6562           |    72|
+|6563           |    72|
+|6564           |    72|
+|6565           |    72|
+|6566           |    72|
+|6567           |    72|
+|6568           |    72|
+|6569           |    72|
+|6570           |    72|
+|6571           |    72|
+|6572           |    72|
+|6573           |    72|
+|6574           |    72|
+|6575           |    72|
+|6576           |    72|
+|6577           |    72|
+|6578           |    72|
+|6579           |    72|
+|6580           |    72|
+|6581           |    72|
+|6582           |    72|
+|6583           |    72|
+|6584           |    72|
+|6585           |    72|
+|6586           |    72|
+|6587           |    72|
+|6588           |    72|
+|6589           |    72|
+|6590           |    72|
+|6591           |    72|
+|6592           |    72|
+|6593           |    72|
+|6594           |    72|
+|6595           |    72|
+|6596           |    72|
+|6597           |    72|
+|6598           |    72|
+|6599           |    72|
+|6600           |    72|
+|6601           |    72|
+|6602           |    72|
+|6603           |    72|
+|6604           |    72|
+|6605           |    72|
+|6606           |    72|
+|6607           |    72|
+|6608           |    72|
+|6609           |    72|
+|6610           |    72|
+|6611           |    72|
+|6612           |    72|
+|6613           |    72|
+|6614           |    72|
+|6615           |    72|
+|6616           |    72|
+|6617           |    72|
+|6618           |    72|
+|6619           |    72|
+|6620           |    72|
+|6621           |    72|
+|6622           |    72|
+|6623           |    72|
+|6624           |    72|
+|6625           |    72|
+|6626           |    72|
+|6627           |    72|
+|6628           |    72|
+|6629           |    72|
+|6630           |    72|
+|6631           |    72|
+|6632           |    72|
+|6633           |    72|
+|6634           |    72|
+|6635           |    72|
+|6636           |    72|
+|6637           |    72|
+|6638           |    72|
+|6639           |    72|
+|6640           |    72|
+|6641           |    72|
+|6642           |    72|
+|6643           |    72|
+|6644           |    72|
+|6645           |    72|
+|6646           |    72|
+|6647           |    72|
+|6648           |    72|
+|6649           |    72|
+|6650           |    72|
+|6651           |    72|
+|6652           |    72|
+|6653           |    72|
+|6656           |    72|
+|6657           |    72|
+|6658           |    72|
+|6659           |    72|
+|93070          |    72|
+|93071          |    72|
+|93072          |    72|
+|93073          |    72|
+|93074          |    72|
+|93075          |    72|
+|93076          |    72|
+|93077          |    72|
+|93078          |    72|
+|93079          |    72|
+|93080          |    72|
+|93081          |    72|
+|93082          |    72|
+|93084          |    72|
+|93085          |    72|
+|93086          |    72|
+|93087          |    72|
+|93088          |    72|
+|93089          |    72|
+|93090          |    72|
+|93091          |    72|
+|93092          |    72|
+|93093          |    72|
+|93094          |    72|
+|93095          |    72|
+|93096          |    72|
+|93097          |    72|
+|93098          |    72|
+
+--- Summary for Classifier: Idade ---
+Unique Values:
+ [1] "Total"          "0 a 4 anos"     "Menos de 1 ano" "Menos de 1 mês" "1 mês"          "2 meses"       
+ [7] "3 meses"        "4 meses"        "5 meses"        "6 meses"        "7 meses"        "8 meses"       
+[13] "9 meses"        "10 meses"       "11 meses"       "1 ano"          "2 anos"         "3 anos"        
+[19] "4 anos"         "5 a 9 anos"     "5 anos"         "6 anos"         "7 anos"         "8 anos"        
+[25] "9 anos"        
+... (and 109 more unique values)
+
+Frequency Counts:
+
+
+|Idade            | Count|
+|:----------------|-----:|
+|0 a 4 anos       |    72|
+|1 ano            |    72|
+|1 mês            |    72|
+|10 a 14 anos     |    72|
+|10 anos          |    72|
+|10 meses         |    72|
+|100 anos ou mais |    72|
+|11 anos          |    72|
+|11 meses         |    72|
+|12 anos          |    72|
+|13 anos          |    72|
+|14 anos          |    72|
+|15 a 19 anos     |    72|
+|15 anos          |    72|
+|16 anos          |    72|
+|17 anos          |    72|
+|18 anos          |    72|
+|19 anos          |    72|
+|2 anos           |    72|
+|2 meses          |    72|
+|20 a 24 anos     |    72|
+|20 anos          |    72|
+|21 anos          |    72|
+|22 anos          |    72|
+|23 anos          |    72|
+|24 anos          |    72|
+|25 a 29 anos     |    72|
+|25 anos          |    72|
+|26 anos          |    72|
+|27 anos          |    72|
+|28 anos          |    72|
+|29 anos          |    72|
+|3 anos           |    72|
+|3 meses          |    72|
+|30 a 34 anos     |    72|
+|30 anos          |    72|
+|31 anos          |    72|
+|32 anos          |    72|
+|33 anos          |    72|
+|34 anos          |    72|
+|35 a 39 anos     |    72|
+|35 anos          |    72|
+|36 anos          |    72|
+|37 anos          |    72|
+|38 anos          |    72|
+|39 anos          |    72|
+|4 anos           |    72|
+|4 meses          |    72|
+|40 a 44 anos     |    72|
+|40 anos          |    72|
+|41 anos          |    72|
+|42 anos          |    72|
+|43 anos          |    72|
+|44 anos          |    72|
+|45 a 49 anos     |    72|
+|45 anos          |    72|
+|46 anos          |    72|
+|47 anos          |    72|
+|48 anos          |    72|
+|49 anos          |    72|
+|5 a 9 anos       |    72|
+|5 anos           |    72|
+|5 meses          |    72|
+|50 a 54 anos     |    72|
+|50 anos          |    72|
+|51 anos          |    72|
+|52 anos          |    72|
+|53 anos          |    72|
+|54 anos          |    72|
+|55 a 59 anos     |    72|
+|55 anos          |    72|
+|56 anos          |    72|
+|57 anos          |    72|
+|58 anos          |    72|
+|59 anos          |    72|
+|6 anos           |    72|
+|6 meses          |    72|
+|60 a 64 anos     |    72|
+|60 anos          |    72|
+|61 anos          |    72|
+|62 anos          |    72|
+|63 anos          |    72|
+|64 anos          |    72|
+|65 a 69 anos     |    72|
+|65 anos          |    72|
+|66 anos          |    72|
+|67 anos          |    72|
+|68 anos          |    72|
+|69 anos          |    72|
+|7 anos           |    72|
+|7 meses          |    72|
+|70 a 74 anos     |    72|
+|70 anos          |    72|
+|71 anos          |    72|
+|72 anos          |    72|
+|73 anos          |    72|
+|74 anos          |    72|
+|75 a 79 anos     |    72|
+|75 anos          |    72|
+|76 anos          |    72|
+|77 anos          |    72|
+|78 anos          |    72|
+|79 anos          |    72|
+|8 anos           |    72|
+|8 meses          |    72|
+|80 a 84 anos     |    72|
+|80 anos          |    72|
+|81 anos          |    72|
+|82 anos          |    72|
+|83 anos          |    72|
+|84 anos          |    72|
+|85 a 89 anos     |    72|
+|85 anos          |    72|
+|86 anos          |    72|
+|87 anos          |    72|
+|88 anos          |    72|
+|89 anos          |    72|
+|9 anos           |    72|
+|9 meses          |    72|
+|90 a 94 anos     |    72|
+|90 anos          |    72|
+|91 anos          |    72|
+|92 anos          |    72|
+|93 anos          |    72|
+|94 anos          |    72|
+|95 a 99 anos     |    72|
+|95 anos          |    72|
+|96 anos          |    72|
+|97 anos          |    72|
+|98 anos          |    72|
+|99 anos          |    72|
+|Menos de 1 ano   |    72|
+|Menos de 1 mês   |    72|
+|Total            |    72|
+
+
+
+=======================================================================
+Detailed Inspection for: table_2093 - CENSO 00/10 Pop. by Race/Age/Gender
+=======================================================================
+
+--- 1. Overview ---
+Dimensions: 4788 rows x 21 columns
+Glimpse:
+Rows: 4,788
+Columns: 21
+$ Fetched_Table_ID                 <dbl> 2093, 2093, 2093, 2093, 2093, 2093, 2093, 2093, 2093, 2093, 2093, 2093…
+$ Fetched_Table_Desc               <chr> "CENSO 00/10 Pop. by Race/Age/Gender", "CENSO 00/10 Pop. by Race/Age/G…
+$ `Nível Territorial (Código)`     <chr> "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", "6", …
+$ `Nível Territorial`              <chr> "Município", "Município", "Município", "Município", "Município", "Muni…
+$ `Unidade de Medida (Código)`     <chr> "45", "45", "45", "45", "45", "45", "45", "45", "45", "45", "45", "45"…
+$ `Unidade de Medida`              <chr> "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pessoas", "Pes…
+$ Valor                            <dbl> 186466, 62882, 20921, 20722, 21239, 114632, 21235, 13009, 8226, 18596,…
+$ `Município (Código)`             <chr> "2700300", "2700300", "2700300", "2700300", "2700300", "2700300", "270…
+$ Município                        <chr> "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)", "Arapiraca (AL)"…
+$ `Ano (Código)`                   <chr> "2000", "2000", "2000", "2000", "2000", "2000", "2000", "2000", "2000"…
+$ Ano                              <chr> "2000", "2000", "2000", "2000", "2000", "2000", "2000", "2000", "2000"…
+$ `Variável (Código)`              <chr> "93", "93", "93", "93", "93", "93", "93", "93", "93", "93", "93", "93"…
+$ Variável                         <chr> "População residente", "População residente", "População residente", "…
+$ `Cor ou raça (Código)`           <chr> "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", …
+$ `Cor ou raça`                    <chr> "Total", "Total", "Total", "Total", "Total", "Total", "Total", "Total"…
+$ `Sexo (Código)`                  <chr> "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", …
+$ Sexo                             <chr> "Total", "Total", "Total", "Total", "Total", "Total", "Total", "Total"…
+$ `Situação do domicílio (Código)` <chr> "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", …
+$ `Situação do domicílio`          <chr> "Total", "Total", "Total", "Total", "Total", "Total", "Total", "Total"…
+$ `Grupo de idade (Código)`        <chr> "0", "100402", "1140", "1141", "1142", "6797", "1143", "2792", "92982"…
+$ `Grupo de idade`                 <chr> "Total", "0 a 14 anos", "0 a 4 anos", "5 a 9 anos", "10 a 14 anos", "1…
+
+
+--- 2. Key Identifiers ---
+Unique Years ('Ano'):
+[1] "2000" "2010"
+
+Unique Municipality Codes ('Município (Código)'):
+[1] "2700300"
+
+--- 3. Value Column ('Valor') Summary ---
+     Min.   1st Qu.    Median      Mean   3rd Qu.      Max.      NA's 
+     0.00      0.38     10.00   2524.03    725.75 214006.00      1522 
+
+--- 4. Variable and Unit ('Variável', 'Unidade de Medida') ---
+Variable / Unit Combinations Present:
+
+
+|Variável                                        |Unidade de Medida | RowCount|
+|:-----------------------------------------------|:-----------------|--------:|
+|População residente                             |Pessoas           |     2394|
+|População residente - percentual do total geral |Percentual        |     2394|
+
+--- 5. Potential Classifier Columns ---
+Found potential classifiers: Cor ou raça (Código), Cor ou raça, Sexo (Código), Sexo, Situação do domicílio (Código), Situação do domicílio, Grupo de idade (Código), Grupo de idade 
+
+--- Summary for Classifier: Cor ou raça (Código) ---
+Unique Values:
+[1] "0"    "2776" "2777" "2778" "2779" "2780" "2781"
+
+Frequency Counts:
+
+
+|Cor ou raça (Código) | Count|
+|:--------------------|-----:|
+|0                    |   684|
+|2776                 |   684|
+|2777                 |   684|
+|2778                 |   684|
+|2779                 |   684|
+|2780                 |   684|
+|2781                 |   684|
+
+--- Summary for Classifier: Cor ou raça ---
+Unique Values:
+[1] "Total"          "Branca"         "Preta"          "Amarela"        "Parda"          "Indígena"      
+[7] "Sem declaração"
+
+Frequency Counts:
+
+
+|Cor ou raça    | Count|
+|:--------------|-----:|
+|Amarela        |   684|
+|Branca         |   684|
+|Indígena       |   684|
+|Parda          |   684|
+|Preta          |   684|
+|Sem declaração |   684|
+|Total          |   684|
+
+--- Summary for Classifier: Sexo (Código) ---
+Unique Values:
+[1] "0" "4" "5"
+
+Frequency Counts:
+
+
+|Sexo (Código) | Count|
+|:-------------|-----:|
+|0             |  1596|
+|4             |  1596|
+|5             |  1596|
+
+--- Summary for Classifier: Sexo ---
+Unique Values:
+[1] "Total"    "Homens"   "Mulheres"
+
+Frequency Counts:
+
+
+|Sexo     | Count|
+|:--------|-----:|
+|Homens   |  1596|
+|Mulheres |  1596|
+|Total    |  1596|
+
+--- Summary for Classifier: Situação do domicílio (Código) ---
+Unique Values:
+[1] "0" "1" "2"
+
+Frequency Counts:
+
+
+|Situação do domicílio (Código) | Count|
+|:------------------------------|-----:|
+|0                              |  1596|
+|1                              |  1596|
+|2                              |  1596|
+
+--- Summary for Classifier: Situação do domicílio ---
+Unique Values:
+[1] "Total"  "Urbana" "Rural" 
+
+Frequency Counts:
+
+
+|Situação do domicílio | Count|
+|:---------------------|-----:|
+|Rural                 |  1596|
+|Total                 |  1596|
+|Urbana                |  1596|
+
+--- Summary for Classifier: Grupo de idade (Código) ---
+Unique Values:
+ [1] "0"      "100402" "1140"   "1141"   "1142"   "6797"   "1143"   "2792"   "92982"  "1144"   "1145"   "3299"  
+[13] "3300"   "3301"   "3520"   "6798"   "3244"   "95252"  "2503"  
+
+Frequency Counts:
+
+
+|Grupo de idade (Código) | Count|
+|:-----------------------|-----:|
+|0                       |   252|
+|100402                  |   252|
+|1140                    |   252|
+|1141                    |   252|
+|1142                    |   252|
+|1143                    |   252|
+|1144                    |   252|
+|1145                    |   252|
+|2503                    |   252|
+|2792                    |   252|
+|3244                    |   252|
+|3299                    |   252|
+|3300                    |   252|
+|3301                    |   252|
+|3520                    |   252|
+|6797                    |   252|
+|6798                    |   252|
+|92982                   |   252|
+|95252                   |   252|
+
+--- Summary for Classifier: Grupo de idade ---
+Unique Values:
+ [1] "Total"           "0 a 14 anos"     "0 a 4 anos"      "5 a 9 anos"      "10 a 14 anos"    "15 a 64 anos"   
+ [7] "15 a 19 anos"    "15 a 17 anos"    "18 e 19 anos"    "20 a 24 anos"    "25 a 29 anos"    "30 a 39 anos"   
+[13] "40 a 49 anos"    "50 a 59 anos"    "60 a 69 anos"    "65 anos ou mais" "70 anos ou mais" "70 a 79 anos"   
+[19] "80 anos ou mais"
+
+Frequency Counts:
+
+
+|Grupo de idade  | Count|
+|:---------------|-----:|
+|0 a 14 anos     |   252|
+|0 a 4 anos      |   252|
+|10 a 14 anos    |   252|
+|15 a 17 anos    |   252|
+|15 a 19 anos    |   252|
+|15 a 64 anos    |   252|
+|18 e 19 anos    |   252|
+|20 a 24 anos    |   252|
+|25 a 29 anos    |   252|
+|30 a 39 anos    |   252|
+|40 a 49 anos    |   252|
+|5 a 9 anos      |   252|
+|50 a 59 anos    |   252|
+|60 a 69 anos    |   252|
+|65 anos ou mais |   252|
+|70 a 79 anos    |   252|
+|70 anos ou mais |   252|
+|80 anos ou mais |   252|
+|Total           |   252|
+
+> 
+> # ---------------------------
+> # 7. End of Inspection Script
+> # ---------------------------
+> message("\n--- Enhanced Inspection Script Finished ---")

@@ -39,8 +39,9 @@ library(knitr)
 # --- 1. Configuration Section ---
 target_munis_6dig <- c("2700300")
 target_years      <- 2000:2022
-OUTPUT_FILENAME   <- "demographic_basis_wide_v14.3_TargetSchema_PivotFix.rds"
-RAW_TOTALS_FILENAME <- "raw_census_totals_for_validation_v14.3_PivotFix.rds"
+ALL_TARGET_YEARS  <- min(target_years):max(target_years) # <<<--- ADD THIS LINE
+OUTPUT_FILENAME   <- "demographic_basis_interpolated_v15.rds" # Make sure this is updated too
+RAW_TOTALS_FILENAME <- "raw_census_totals_for_validation_v14.3_PivotFix.rds" # Or update to v15
 OUTPUT_DIR        <- "output"
 
 sidra_tables_config <- list(
@@ -198,6 +199,88 @@ harmonize_age_band_target_schema_scalar <- function(age_str_scalar) {
   )
 }
 
+# --- NEW HELPER FUNCTIONS FOR GRANULAR INTERPOLATION (to be added in Section 2) ---
+
+prepare_census_shares_for_main_script <- function(demographic_basis_df, census_years_vec, all_genders, all_races, all_age_bands) {
+  message("      Sub-step: Preparing long format shares from census years for interpolation...")
+  
+  expected_gra_cols <- expand.grid(g=all_genders, r=all_races, a=all_age_bands) %>%
+    mutate(col_name = paste0("pop_", g, "_", r, "_", a)) %>%
+    pull(col_name)
+  actual_gra_cols_in_data <- intersect(expected_gra_cols, names(demographic_basis_df))
+  
+  if(length(actual_gra_cols_in_data) == 0) {
+    stop("In prepare_census_shares_for_main_script: No granular population columns found.")
+  }
+  
+  # Denominator for shares in census years is pop_total_original_raw
+  # which is equal to pop_total_est in census years due to earlier logic.
+  shares_long_df <- demographic_basis_df %>%
+    filter(ano %in% census_years_vec) %>%
+    select(muni_code, ano, pop_total_est, # Using pop_total_est as denominator (matches original_raw for census)
+           all_of(actual_gra_cols_in_data)) %>%
+    pivot_longer(
+      cols = all_of(actual_gra_cols_in_data),
+      names_to = "gra_column",
+      values_to = "pop_census_val" # These are already 0-filled from earlier step
+    ) %>%
+    mutate(
+      gender = str_match(gra_column, "^pop_([MW])_")[,2],
+      race = str_match(gra_column, "^pop_[MW]_([A-Za-z]{3})_")[,2],
+      age_band = str_match(gra_column, "^pop_[MW]_[A-Za-z]{3}_(.*)$")[,2]
+    ) %>%
+    filter(!is.na(gender) & !is.na(race) & !is.na(age_band)) %>%
+    mutate(
+      share = ifelse(pop_total_est > 0, pop_census_val / pop_total_est, 0)
+    ) %>%
+    mutate(share = ifelse(is.na(share) & pop_total_est == 0 & pop_census_val == 0, 0, share)) %>%
+    select(muni_code, ano, gender, race, age_band, share, pop_census_val) # pop_census_val needed to restore later
+  
+  pop_total_est_ref_df <- demographic_basis_df %>%
+    select(muni_code, ano, pop_total_est) %>%
+    distinct()
+  
+  return(list(census_shares = shares_long_df, pop_total_est_ref = pop_total_est_ref_df))
+}
+
+interpolate_shares_core <- function(group_df, # Contains ano, share for one G.R.A series
+                                    all_target_years_vec,
+                                    interpolation_method_type = "spline") { # Default to spline
+  
+  complete_years_df <- tibble(ano = all_target_years_vec)
+  data_to_interp <- complete_years_df %>%
+    left_join(group_df, by = "ano") # group_df should only have ano, share
+  
+  interpolated_share_values <- rep(NA_real_, length(all_target_years_vec))
+  valid_share_points <- data_to_interp %>% filter(!is.na(share))
+  
+  if (nrow(valid_share_points) < 2) { 
+    filled_shares <- zoo::na.locf(zoo::na.locf(data_to_interp$share, na.rm = FALSE), fromLast = TRUE, na.rm = FALSE)
+    interpolated_share_values <- ifelse(is.na(filled_shares), 0, filled_shares)
+  } else if (interpolation_method_type == "linear") {
+    interp_result <- zoo::na.approx(data_to_interp$share, x = data_to_interp$ano, xout = all_target_years_vec, rule = 2)
+    interpolated_share_values <- as.numeric(interp_result) 
+  } else if (interpolation_method_type == "spline") {
+    if (nrow(valid_share_points) >= 2) { 
+      spline_fit <- tryCatch(
+        stats::splinefun(x = valid_share_points$ano, y = valid_share_points$share, method = "monoH.FC"),
+        error = function(e) {
+          tryCatch(stats::splinefun(x = valid_share_points$ano, y = valid_share_points$share, method = "fmm"),
+                   error = function(e2) { return(NULL) }) } )
+      if(!is.null(spline_fit)){ interpolated_share_values <- spline_fit(all_target_years_vec)
+      } else { 
+        interp_result_fallback <- zoo::na.approx(data_to_interp$share, x = data_to_interp$ano, xout = all_target_years_vec, rule = 2)
+        interpolated_share_values <- as.numeric(interp_result_fallback) }
+    } else { 
+      interp_result_fallback2 <- zoo::na.approx(data_to_interp$share, x = data_to_interp$ano, xout = all_target_years_vec, rule = 2)
+      interpolated_share_values <- as.numeric(interp_result_fallback2) }
+  } else { stop("Unknown interpolation_method_type") }
+  
+  interpolated_share_values <- pmax(0, pmin(1, interpolated_share_values))
+  interpolated_share_values <- ifelse(is.na(interpolated_share_values), 0, interpolated_share_values)
+  return(tibble(ano = all_target_years_vec, interpolated_share = interpolated_share_values))
+}
+
 # --- 3. Fetch Raw Data ---
 message("\n--- 3. Fetching Raw Data ---")
 plan(multisession, workers = max(1, availableCores() - 1))
@@ -235,18 +318,37 @@ if (!is.null(std_data_list$pib) && nrow(std_data_list$pib) > 0) {
     filter(Variável %in% sidra_tables_config$pib$target_vars, !is.na(value)) %>%
     select(muni_code, ano, Variável, value) %>%
     distinct(muni_code, ano, Variável, .keep_all = TRUE)
+  
   pib_pivoted <- pib_raw_std %>% pivot_wider(names_from = Variável, values_from = value)
-  # DEBUG: Uncomment to see names before renaming
-  print("PIB pivoted names:"); print(names(pib_pivoted))
-  pib_processed <- pib_pivoted %>% rename(any_of(col_rename_map))
-  expected_pib_renamed <- unname(col_rename_map[names(col_rename_map) %in% sidra_tables_config$pib$target_vars])
+  
+  # print("PIB pivoted names (before rename):"); print(names(pib_pivoted)) # You can keep this for one more check if you like
+  
+  # --- THIS IS THE KEY CHANGE FOR RENAMING ---
+  # We use rename_with. For each column name (.x) that is a NAME in col_rename_map (i.e., an OLD SIDRA NAME),
+  # replace it with its corresponding VALUE from col_rename_map (i.e., the NEW DESIRED NAME).
+  pib_processed <- pib_pivoted %>%
+    rename_with(~ col_rename_map[.x], .cols = any_of(names(col_rename_map)))
+  # --- END OF KEY CHANGE ---
+  
+  # print("PIB processed names (after rename_with):"); print(names(pib_processed)) # You can keep for one more check
+  
+  # Validation check
+  # expected_pib_renamed uses the VALUES of col_rename_map (the new names)
+  # that correspond to the original target_vars
+  expected_pib_renamed <- unname(col_rename_map[sidra_tables_config$pib$target_vars])
+  expected_pib_renamed <- expected_pib_renamed[!is.na(expected_pib_renamed)] # Filter out NAs if a target_var wasn't in map keys
+  
   missing_pib_cols <- setdiff(expected_pib_renamed, names(pib_processed))
   if (length(missing_pib_cols) > 0) {
     warning("PIB renaming check failed. Missing: ", paste(missing_pib_cols, collapse=", "))
-  } else { message("   PIB renaming successful.") }
+    message("Expected new PIB names: ", paste(expected_pib_renamed, collapse=", "))
+    message("Actual names in pib_processed: ", paste(names(pib_processed), collapse=", "))
+  } else { 
+    message("   PIB renaming successful.") 
+  }
 } else {
   warning("PIB raw data is missing or empty.")
-  pib_processed <- tibble(muni_code = character(), ano = integer()) # Ensure it's a tibble for join
+  pib_processed <- tibble(muni_code = character(), ano = integer()) 
 }
 
 # --- 4c. CEMPRE ---
@@ -255,24 +357,40 @@ if ((!is.null(std_data_list$cempre_06_21) && nrow(std_data_list$cempre_06_21) > 
     (!is.null(std_data_list$cempre_22) && nrow(std_data_list$cempre_22) > 0) ) {
   cempre_target_vars <- unique(c(sidra_tables_config$cempre_06_21$target_vars, sidra_tables_config$cempre_22$target_vars))
   cempre_raw_combined <- bind_rows(std_data_list$cempre_06_21, std_data_list$cempre_22)
+  
   cempre_filtered_deduped <- cempre_raw_combined %>%
     filter(Variável %in% cempre_target_vars, !is.na(value)) %>%
     select(muni_code, ano, Variável, value, Fetched_Table_ID) %>%
     group_by(muni_code, ano, Variável) %>% 
     arrange(desc(Fetched_Table_ID)) %>% slice(1) %>% ungroup() %>%
     select(-Fetched_Table_ID)
+  
   cempre_pivoted <- cempre_filtered_deduped %>% pivot_wider(names_from = Variável, values_from = value)
-  # DEBUG: Uncomment to see names before renaming
-  print("CEMPRE pivoted names:"); print(names(cempre_pivoted))
-  cempre_processed <- cempre_pivoted %>% rename(any_of(col_rename_map))
-  expected_cempre_renamed <- unname(col_rename_map[names(col_rename_map) %in% cempre_target_vars])
+  
+  # print("CEMPRE pivoted names (before rename):"); print(names(cempre_pivoted)) # You can keep for one more check
+  
+  # --- THIS IS THE KEY CHANGE FOR RENAMING ---
+  cempre_processed <- cempre_pivoted %>%
+    rename_with(~ col_rename_map[.x], .cols = any_of(names(col_rename_map)))
+  # --- END OF KEY CHANGE ---
+  
+  # print("CEMPRE processed names (after rename_with):"); print(names(cempre_processed)) # You can keep for one more check
+  
+  # Validation check
+  expected_cempre_renamed <- unname(col_rename_map[cempre_target_vars])
+  expected_cempre_renamed <- expected_cempre_renamed[!is.na(expected_cempre_renamed)]
+  
   missing_cempre_cols <- setdiff(expected_cempre_renamed, names(cempre_processed))
   if (length(missing_cempre_cols) > 0) {
     warning("CEMPRE renaming check failed. Missing: ", paste(missing_cempre_cols, collapse=", "))
-  } else { message("   CEMPRE renaming successful.") }
+    message("Expected new CEMPRE names: ", paste(expected_cempre_renamed, collapse=", "))
+    message("Actual names in cempre_processed: ", paste(names(cempre_processed), collapse=", "))
+  } else { 
+    message("   CEMPRE renaming successful.") 
+  }
 } else {
   warning("CEMPRE raw data is missing or empty.")
-  cempre_processed <- tibble(muni_code = character(), ano = integer()) # Ensure it's a tibble for join
+  cempre_processed <- tibble(muni_code = character(), ano = integer()) 
 }
 
 # --- 4d. Census Data Processing ---
@@ -420,10 +538,13 @@ if (exists("raw_census_totals") && nrow(raw_census_totals) > 0) {
 
 pop_total_est_final_df <- pop_combined_series %>%
   group_by(muni_code) %>% arrange(ano) %>%
-  mutate(pop_total_est = zoo::na.approx(pop_to_interpolate, na.rm = FALSE, rule = 2)) %>%
+  mutate(
+    pop_total_est_decimal = zoo::na.approx(pop_to_interpolate, na.rm = FALSE, rule = 2),
+    pop_total_est = round(pop_total_est_decimal) # <<<--- INTEGERIZE pop_total_est
+  ) %>%
   ungroup() %>%
   filter(ano %in% target_years) %>%
-  select(muni_code, ano, pop_total_est)
+  select(muni_code, ano, pop_total_est) # Keep the integerized version
 
 if (any(is.na(pop_total_est_final_df$pop_total_est))) {
   warning("NAs found in final pop_total_est after interpolation. Check source data coverage for muni_code(s): ",
@@ -584,8 +705,183 @@ if ("pop_total_est" %in% names(demographic_basis_final) && "pop_total_original_r
 } else { warning("Could not perform 'pop_total_est' vs 'pop_total_original_raw' validation.") }
 
 
+# --- 8b. Interpolate Granular Demographic Groups for Non-Census Years ---
+message("\n--- 8b. Interpolating Granular Demographic Groups (Spline Method) ---")
+
+# Extract Genders, Races, Age Bands from the current demographic_basis_final
+# This ensures it uses the columns that actually exist after all prior processing.
+current_pop_cols <- names(demographic_basis_final)[str_starts(names(demographic_basis_final), "pop_") & 
+                                                     !names(demographic_basis_final) %in% c("pop_total_est", "pop_total_original_raw")]
+
+if(length(current_pop_cols) > 0) {
+  parsed_current_cols <- str_match(current_pop_cols, "^pop_([MW])_([A-Za-z]{3})_([0-9]{2}_[0-9]{2}|[0-9]{2}p|80p)$")
+  # Ensure V1 (full match) is not all NA before proceeding, which na.omit would handle
+  # Also ensure we have expected columns after str_match
+  if (is.null(parsed_current_cols) || ncol(parsed_current_cols) < 4) {
+    stop("Failed to parse G/R/A from column names in Section 8b. Check current_pop_cols and str_match regex.")
+  }
+  parsed_current_cols_df <- na.omit(as.data.frame(parsed_current_cols[,1:4, drop=FALSE])) # Keep as df even if one row
+  names(parsed_current_cols_df) <- c("original_col", "V2", "V3", "V4") # Assign temp names for clarity
+  
+  if(nrow(parsed_current_cols_df) == 0 || any(!nzchar(parsed_current_cols_df$V2)) || any(!nzchar(parsed_current_cols_df$V3)) || any(!nzchar(parsed_current_cols_df$V4)) ) {
+    warning("Could not reliably parse G/R/A from all pop_ columns in Section 8b. Skipping granular interpolation.")
+    # To prevent erroring later, we ensure an empty tibble if things go wrong here for the 'else' part.
+    # However, the main `if(length(current_pop_cols) > 0)` should catch most issues.
+  } else {
+    CURRENT_GENDERS <- unique(parsed_current_cols_df$V2)
+    CURRENT_RACES   <- unique(parsed_current_cols_df$V3) # Should not contain 'Ign'
+    CURRENT_AGES    <- unique(parsed_current_cols_df$V4)
+    
+    # Prepare data for interpolation (shares from census years)
+    prepared_interp_data <- prepare_census_shares_for_main_script(
+      demographic_basis_final, 
+      CENSUS_YEARS,
+      CURRENT_GENDERS, 
+      CURRENT_RACES, 
+      CURRENT_AGES
+    )
+    
+    census_shares_df <- prepared_interp_data$census_shares
+    pop_total_est_ref_df <- prepared_interp_data$pop_total_est_ref # This has INTEGER pop_total_est
+    
+    message("      Interpolating shares for each G.R.A group using spline...")
+    all_interpolated_shares <- census_shares_df %>%
+      # Ensure only necessary columns are grouped for reframe if census_shares_df has extra cols
+      select(muni_code, gender, race, age_band, ano, share) %>% 
+      group_by(muni_code, gender, race, age_band) %>%
+      reframe(interpolate_shares_core(
+        group_df = pick(ano, share), 
+        all_target_years_vec = ALL_TARGET_YEARS, 
+        interpolation_method_type = "spline"
+      )) %>%
+      ungroup()
+    message("      Finished interpolating shares.")
+    
+    message("      Calculating and normalizing (decimal) interpolated counts...")
+    # This produces pop_interpolated_normalized (still decimal)
+    interpolated_counts_long_decimal <- all_interpolated_shares %>%
+      left_join(pop_total_est_ref_df, by = c("muni_code", "ano")) %>% # pop_total_est here is INTEGER
+      mutate(initial_pop = interpolated_share * pop_total_est) %>% # initial_pop is decimal
+      mutate(initial_pop = ifelse(initial_pop < 0, 0, initial_pop)) %>%
+      group_by(muni_code, ano) %>%
+      mutate(
+        current_sum_granular = sum(initial_pop, na.rm = TRUE),
+        adjustment_factor = ifelse(current_sum_granular == 0 & pop_total_est == 0, 1, # Avoid 0/0 if pop_total_est is 0
+                                   ifelse(current_sum_granular == 0 & pop_total_est > 0, 0, # All shares were 0
+                                          pop_total_est / current_sum_granular)),
+        # pop_interpolated_normalized is decimal, but its sum matches integer pop_total_est
+        pop_interpolated_normalized = initial_pop * adjustment_factor 
+      ) %>%
+      ungroup() %>%
+      # Keep pop_total_est for the integerization step
+      select(muni_code, ano, gender, race, age_band, pop_interpolated_normalized, pop_total_est) 
+    
+    # --- BEGIN INSERTED INTEGERIZATION LOGIC ---
+    message("      Integerizing granular populations while preserving total...")
+    interpolated_counts_integerized <- interpolated_counts_long_decimal %>%
+      group_by(muni_code, ano) %>% # pop_total_est is already grouped by muni_code, ano
+      mutate(
+        pop_rounded = round(pop_interpolated_normalized),
+        sum_pop_rounded = sum(pop_rounded, na.rm = TRUE),
+        # pop_total_est is the authoritative INTEGER total for the year/muni from pop_total_est_ref_df
+        diff_to_distribute = pop_total_est - sum_pop_rounded, 
+        remainder = pop_interpolated_normalized - floor(pop_interpolated_normalized)
+      ) %>%
+      arrange(muni_code, ano, 
+              ifelse(diff_to_distribute > 0, desc(remainder), remainder), 
+              desc(pop_interpolated_normalized)) %>%
+      mutate(
+        adjustment_value = ifelse(row_number() <= abs(diff_to_distribute), sign(diff_to_distribute), 0),
+        pop_integer_final = pop_rounded + adjustment_value
+      ) %>%
+      ungroup() %>%
+      select(muni_code, ano, gender, race, age_band, pop_integer_final)
+    # --- END INSERTED INTEGERIZATION LOGIC ---
+    
+    # Pivot interpolated data (now integer) to wide format
+    interpolated_counts_wide <- interpolated_counts_integerized %>% # Use the integerized version
+      mutate(col_name = paste0("pop_", gender, "_", race, "_", age_band)) %>%
+      select(muni_code, ano, col_name, pop_integer_final) %>% 
+      pivot_wider(names_from = col_name, values_from = pop_integer_final)
+    
+    message("      Preparing to merge interpolated data back into main dataframe...")
+    interp_gra_col_names <- names(interpolated_counts_wide)[!names(interpolated_counts_wide) %in% c("muni_code", "ano")]
+    
+    df_census_years <- demographic_basis_final %>%
+      filter(ano %in% CENSUS_YEARS)
+    
+    df_non_census_years_base <- demographic_basis_final %>%
+      filter(!(ano %in% CENSUS_YEARS)) %>%
+      select(-any_of(interp_gra_col_names)) 
+    
+    df_non_census_years_interpolated <- df_non_census_years_base %>%
+      left_join(interpolated_counts_wide, by = c("muni_code", "ano"))
+    
+    all_expected_cols <- names(demographic_basis_final)
+    
+    for(col_name in all_expected_cols) {
+      if (!col_name %in% names(df_census_years)) {
+        df_census_years[[col_name]] <- NA_integer_ # Use NA_integer_ for pop columns
+      }
+      if (!col_name %in% names(df_non_census_years_interpolated)) {
+        df_non_census_years_interpolated[[col_name]] <- NA_integer_
+      }
+    }
+    
+    # Ensure consistent column types for G.R.A columns before bind_rows
+    # (census year G.R.A columns are already integer from NA to 0 conversion or original data)
+    # (interpolated G.R.A columns are now integer)
+    for(col_name in interp_gra_col_names){
+      if(col_name %in% names(df_census_years)) df_census_years[[col_name]] <- as.integer(df_census_years[[col_name]])
+      if(col_name %in% names(df_non_census_years_interpolated)) df_non_census_years_interpolated[[col_name]] <- as.integer(df_non_census_years_interpolated[[col_name]])
+    }
+    
+    df_census_years <- df_census_years %>% select(all_of(all_expected_cols))
+    df_non_census_years_interpolated <- df_non_census_years_interpolated %>% select(all_of(all_expected_cols))
+    
+    demographic_basis_final <- bind_rows(df_census_years, df_non_census_years_interpolated) %>%
+      arrange(muni_code, ano)
+    
+    message("      Granular demographics interpolated and merged.")
+    
+    message("      Performing quick validation of interpolated sums for non-census years...")
+    if (length(interp_gra_col_names) > 0) {
+      interp_validation <- demographic_basis_final %>%
+        filter(!(ano %in% CENSUS_YEARS)) %>%
+        filter(!is.na(pop_total_est))
+      
+      existing_gra_cols_for_sum <- intersect(interp_gra_col_names, names(interp_validation))
+      
+      if(length(existing_gra_cols_for_sum) > 0) {
+        interp_validation <- interp_validation %>%
+          mutate(sum_granular_check = rowSums(select(., all_of(existing_gra_cols_for_sum)), na.rm = TRUE)) %>%
+          mutate(disc_interp = sum_granular_check - pop_total_est) # pop_total_est is now integer
+        
+        if(any(interp_validation$disc_interp != 0, na.rm = TRUE)){ # Should be exactly 0
+          warning("--> Post-interpolation sum check FAILED for some non-census years (integer mismatch).")
+          print(knitr::kable(interp_validation %>% 
+                               filter(disc_interp != 0) %>% 
+                               select(muni_code, ano, pop_total_est, sum_granular_check, disc_interp)))
+        } else {
+          message("      Post-interpolation sum check OK for non-census years (integers match).")
+        }
+      } else {
+        message("      Skipping sum_granular_check as no granular columns were found in non-census year data for validation.")
+      }
+    } else {
+      message("      Skipping post-interpolation sum check as no granular column names were identified for summing.")
+    }
+  } # End of the 'else' for G/R/A parsing check
+} else { 
+  message("      Skipping granular interpolation as no granular pop columns were identified in the input demographic_basis_final.")
+}
+
+
+
 # --- 9. Saving Output ---
 # ... (Remains the same as v14.2) ...
+# Modify filename for this new interpolated dataset
+OUTPUT_FILENAME   <- "demographic_basis_interpolated_v15.rds" # Change this at the top of script
 message("\n--- 9. Saving Output ---")
 if (!dir.exists(OUTPUT_DIR)) dir.create(OUTPUT_DIR, recursive = TRUE)
 output_path <- file.path(OUTPUT_DIR, OUTPUT_FILENAME)
@@ -614,132 +910,4 @@ message("\n--- Demographic Basis Script Finished (v14.3 - Target Schema - PivotF
 
 
 
-
-
-
-
-
-
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-
-# 1) parameters
-years   <- c(2000, 2010, 2022)
-ages    <- c("00_04","05_09","10_14","15_19","20_24",
-             "25_29","30_39","40_49","50_59","60_69",
-             "70_79","80p")
-genders <- c("M","W")
-races   <- c("Blk","Brn","Ind","Wht","Ylw")
-
-# 2) grab exactly the 5×2×12 granular cols
-pattern <- paste0("^pop_(", paste(genders, collapse="|"), ")_(",
-                  paste(races, collapse="|"), ")_(",
-                  "(?:[0-9]{2}_[0-9]{2})|80p)$")
-granular_cols <- grep(pattern, names(demographic_basis_final), value = TRUE)
-
-# 3) pivot longer into one table
-long_df <- demographic_basis_final %>%
-  filter(ano %in% years) %>%
-  select(muni_code, muni_name, uf_abbr, ano, all_of(granular_cols)) %>%
-  pivot_longer(
-    cols        = all_of(granular_cols),
-    names_to    = c("gender","race","age"),
-    names_pattern = "^pop_([MW])_([A-Za-z]+)_((?:[0-9]{2}_[0-9]{2})|80p)$",
-    values_to   = "pop"
-  )
-
-# 4) compute each of the four sums per muni–year
-total_df <- long_df %>%
-  group_by(muni_code, muni_name, uf_abbr, ano) %>%
-  summarise(
-    sum_granular = sum(pop, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-race_sum_df <- long_df %>%
-  group_by(muni_code, muni_name, uf_abbr, ano, race) %>%
-  summarise(race_pop = sum(pop, na.rm = TRUE), .groups = "drop") %>%
-  group_by(muni_code, muni_name, uf_abbr, ano) %>%
-  summarise(sum_by_race = sum(race_pop), .groups = "drop")
-
-gender_sum_df <- long_df %>%
-  group_by(muni_code, muni_name, uf_abbr, ano, gender) %>%
-  summarise(gender_pop = sum(pop, na.rm = TRUE), .groups = "drop") %>%
-  group_by(muni_code, muni_name, uf_abbr, ano) %>%
-  summarise(sum_by_gender = sum(gender_pop), .groups = "drop")
-
-age_sum_df <- long_df %>%
-  group_by(muni_code, muni_name, uf_abbr, ano, age) %>%
-  summarise(age_pop = sum(pop, na.rm = TRUE), .groups = "drop") %>%
-  group_by(muni_code, muni_name, uf_abbr, ano) %>%
-  summarise(sum_by_age = sum(age_pop), .groups = "drop")
-
-# 5) assemble all sums with the official total, compute discrepancies
-report_df <- total_df %>%
-  left_join(race_sum_df,   by = c("muni_code","muni_name","uf_abbr","ano")) %>%
-  left_join(gender_sum_df, by = c("muni_code","muni_name","uf_abbr","ano")) %>%
-  left_join(age_sum_df,    by = c("muni_code","muni_name","uf_abbr","ano")) %>%
-  left_join(
-    demographic_basis_final %>%
-      filter(ano %in% years) %>%
-      select(muni_code, muni_name, uf_abbr, ano, pop_total_est),
-    by = c("muni_code","muni_name","uf_abbr","ano")
-  ) %>%
-  mutate(
-    disc_granular = sum_granular - pop_total_est,
-    disc_race     = sum_by_race  - pop_total_est,
-    disc_gender   = sum_by_gender- pop_total_est,
-    disc_age      = sum_by_age   - pop_total_est
-  ) %>%
-  select(
-    muni_code, muni_name, uf_abbr, ano,
-    sum_granular, sum_by_race, sum_by_gender, sum_by_age,
-    pop_total_est,
-    disc_granular, disc_race, disc_gender, disc_age
-  )
-
-# 6) print full report
-print(report_df)
-
-# 7) print only rows where ANY discrepancy ≠ 0
-report_df %>%
-  filter(
-    disc_granular != 0 |
-      disc_race     != 0 |
-      disc_gender   != 0 |
-      disc_age      != 0
-  ) %>%
-  print(n = Inf)
-
-# 8) plot racial and gender compositions for sanity check
-#    (race_pop & gender_pop from earlier dfs)
-
-race_sums <- long_df %>%
-  group_by(ano, race) %>%
-  summarise(race_pop = sum(pop, na.rm = TRUE), .groups = "drop")
-
-gender_sums <- long_df %>%
-  group_by(ano, gender) %>%
-  summarise(gender_pop = sum(pop, na.rm = TRUE), .groups = "drop")
-
-p_race <- ggplot(race_sums, aes(race, race_pop, fill = race)) +
-  geom_col() +
-  facet_wrap(~ ano) +
-  labs(title = "Race Composition by Census Year",
-       x = "Race", y = "Population") +
-  theme_minimal() + theme(legend.position="none")
-
-p_gender <- ggplot(gender_sums, aes(gender, gender_pop, fill = gender)) +
-  geom_col() +
-  facet_wrap(~ ano) +
-  labs(title = "Gender Composition by Census Year",
-       x = "Gender", y = "Population") +
-  theme_minimal() + theme(legend.position="none")
-
-print(p_race)
-print(p_gender)
-
-
-# afsfgalwkgbgnalkgbaehgkbjahd (testing git again)
 
