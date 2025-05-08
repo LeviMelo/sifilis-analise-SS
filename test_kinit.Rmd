@@ -1,0 +1,973 @@
+---
+title: "Análise Epidemiológica da Sífilis Gestacional em Alagoas, 2010-2022"
+author: |
+  | Levi de Melo Amorim
+  | Graduando em Medicina
+  | Universidade Federal de Alagoas (FAMED/UFAL)
+date: "`r format(Sys.Date(), '%d de %B de %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+    theme: cosmo # A clean HTML theme
+    code_folding: hide # Hide code chunks by default, users can expand
+    df_print: kable # Use kable for basic dataframe printing
+lang: "pt-BR" 
+---
+
+```{r setup, include=FALSE}
+# --- Opções Globais do Knitr ---
+knitr::opts_chunk$set(echo = FALSE, # Não mostra o código R por padrão
+                      warning = FALSE, 
+                      message = FALSE, 
+                      fig.align = 'center',
+                      fig.retina = 2) # Melhora resolução em telas HiDPI
+
+# --- Bibliotecas Necessárias ---
+# Certifique-se de que todas estão instaladas!
+# install.packages(c("tidyverse", "lubridate", "scales", "gtsummary", "finalfit", 
+#                    "openxlsx", "here", "sf", "geobr", "patchwork", "viridisLite",
+#                    "knitr", "broom.helpers"))
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(gtsummary)
+library(finalfit) 
+library(openxlsx)
+library(here)
+library(sf)
+library(geobr) 
+library(patchwork)
+library(viridisLite) 
+library(knitr)
+library(broom.helpers) # Necessário para gtsummary/finalfit
+
+# --- Carregamento dos Dados ---
+# !!! GARANTA QUE ESTE ARQUIVO EXISTA E ESTEJA ACESSÍVEL !!!
+tryCatch({
+  load("sifg_alagoas_2010_2022_processed.RData") 
+  if (!exists("sifg_translated_data") || !is.data.frame(sifg_translated_data) || nrow(sifg_translated_data) == 0) {
+    stop("Dataframe 'sifg_translated_data' não encontrado ou vazio após load().")
+  }
+}, error = function(e) {
+  knitr::knit_exit(paste("ERRO CRÍTICO AO CARREGAR DADOS:", e$message, 
+                         "Verifique o caminho e a existência do arquivo .RData."))
+})
+
+# --- Configurações Globais ---
+# Locale para Português (datas, decimais)
+tryCatch({
+  Sys.setlocale("LC_TIME", "pt_BR.UTF-8")
+  Sys.setlocale("LC_ALL", "pt_BR.UTF-8") 
+}, error = function(e) {
+  message("Locale pt_BR.UTF-8 não disponível. Usando locale padrão do sistema.")
+})
+
+# Definir tema padrão do gtsummary para melhor aparência e formatação PT-BR
+theme_gtsummary_language("pt", decimal.mark = ",", big.mark = ".") # Set language defaults
+theme_gtsummary_compact() # Tema mais compacto
+
+# Diretório de saída para relatórios
+dir_relatorio <- here("relatorio")
+if (!dir.exists(dir_relatorio)) {
+  dir.create(dir_relatorio, recursive = TRUE)
+}
+
+# --- Tema Padrão para Gráficos ggplot2 ---
+theme_set(
+  theme_minimal(base_size = 11) + # Tamanho base ligeiramente maior para HTML
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = rel(1.2)),
+    plot.subtitle = element_text(hjust = 0.5, size = rel(1.0), margin = margin(b=10)),
+    axis.title = element_text(face = "bold", size = rel(1.0)),
+    axis.text = element_text(size = rel(0.9)),
+    legend.title = element_text(face = "bold"),
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold", size = rel(1.0)),
+    panel.grid.minor = element_blank(),
+    plot.caption = element_text(hjust = 0, face = "italic", size=rel(0.8))
+  )
+)
+# Definir paleta Viridis como padrão para escalas discretas
+options(ggplot2.discrete.fill = viridisLite::viridis,
+        ggplot2.discrete.colour = viridisLite::viridis)
+cores_principais <- viridisLite::viridis(6) # Pegar 6 cores da paleta padrão
+
+# --- Funções Auxiliares ---
+# Salvar gráfico em PNG (ideal para HTML) e XLSX dos dados
+salvar_grafico_html <- function(plot_obj, nome_arquivo_base, width = 8, height = 6, dpi = 150) {
+  ggsave(filename = here(dir_relatorio, paste0(nome_arquivo_base, ".png")), 
+         plot = plot_obj, width = width, height = height, dpi = dpi, bg = "white")
+}
+
+salvar_tabela_xlsx <- function(tabela_df, nome_arquivo_base, nome_planilha = "Dados") {
+  wb <- createWorkbook()
+  addWorksheet(wb, nome_planilha)
+  
+  # Tratar objeto gtsummary
+  if (inherits(tabela_df, "gtsummary")) {
+    df_para_salvar <- gtsummary::as_tibble(tabela_df, col_labels = TRUE) # Usar col_labels=TRUE
+    # Remover formatação markdown se necessário (ex: **)
+    df_para_salvar <- df_para_salvar %>% mutate(across(everything(), ~str_replace_all(., "\\*\\*", "")))
+  } else if (!is.data.frame(tabela_df)) {
+    df_para_salvar <- as.data.frame(tabela_df)
+  } else {
+    df_para_salvar <- tabela_df
+  }
+  
+  writeData(wb, sheet = nome_planilha, x = df_para_salvar, startCol = 1, startRow = 1)
+  # Adicionar formatação básica pode ser feito aqui com openxlsx
+  
+  saveWorkbook(wb, file = here(dir_relatorio, paste0(nome_arquivo_base, ".xlsx")), overwrite = TRUE)
+}
+
+# --- Preparação Final dos Dados para Análise ---
+df_analise <- sifg_translated_data # Usar o dataframe carregado
+df_analise$ANO_SGB_fct <- factor(df_analise$ANO_SGB)
+
+# Corrigir e formatar variáveis que serão usadas
+df_analise <- df_analise %>%
+  mutate(
+    # Converter títulos VDRL para numérico (simplificado)
+    DSTITULO1_numeric = suppressWarnings(as.numeric(as.character(DSTITULO1))),
+    DSTITULO1_numeric = ifelse(is.finite(DSTITULO1_numeric), DSTITULO1_numeric, NA),
+    
+    # Garantir que variáveis categóricas chave sejam fatores com níveis claros
+    CS_RACA = factor(CS_RACA, levels = c("1-Branca", "2-Preta", "3-Amarela", "4-Parda", "5-Indígena", "9-Ignorado")),
+    CS_ESCOL_N = factor(CS_ESCOL_N, levels = c("0-Analfabeto", "1-EF Incompleto(1-4)", "2-EF Completo(4)", 
+                                               "3-EF Incompleto(5-8)", "4-EF Completo", "5-EM Incompleto", 
+                                               "6-EM Completo", "7-Superior Incompleto", "8-Superior Completo", 
+                                               "9-Ignorado", "10-Não se aplica")),
+    CS_GESTANT = factor(CS_GESTANT, levels = c("1-1ºTrimestre", "2-2ºTrimestre", "3-3ºTrimestre", 
+                                               "4-Idade gestacional ignorada", "9-Ignorado")),
+    TPEVIDENCI = factor(TPEVIDENCI, levels = c("1-Primária", "2-Secundária", "3-Terciária", "4-Latente", "9-Ignorado")),
+    TPESQUEMA = factor(TPESQUEMA, levels = c("1-Pen G benz 2.400.000UI", "2-Pen G benz 4.800.000UI",
+                                             "3-Pen G benz 7.200.000UI", "4-Outro esquema", 
+                                             "5-Não realizado", "9-Ignorado")),
+     TRATPARC = factor(TRATPARC, levels = c("1-Sim", "2-Não", "9-Ignorado"))
+  )
+
+# Definir constantes para o relatório
+ANO_INICIO <- min(df_analise$ANO_SGB, na.rm = TRUE)
+ANO_FIM <- max(df_analise$ANO_SGB, na.rm = TRUE)
+UF_ESTUDO <- unique(df_analise$NOME_UF_NOT) # Pega o primeiro nome único
+UF_CODIGO <- unique(df_analise$SG_UF_NOT)
+TOTAL_CASOS <- nrow(df_analise)
+
+# Labels em Português para variáveis (usado em gtsummary e plots)
+labels_pt <- list(
+  AGE_YEARS ~ "Idade Materna (anos)",
+  CS_RACA ~ "Raça/Cor Autodeclarada",
+  CS_ESCOL_N ~ "Nível de Escolaridade",
+  CS_GESTANT ~ "Idade Gestacional no Diagnóstico",
+  TPEVIDENCI ~ "Classificação Clínica da Sífilis",
+  TPTESTE1 ~ "Teste Não Treponêmico (VDRL/RPR)",
+  TPCONFIRMA ~ "Teste Confirmatório",
+  TPESQUEMA ~ "Esquema de Tratamento (Gestante)",
+  TRATPARC ~ "Parceiro Tratado Concomitantemente",
+  NOME_MUNICIP_RESI ~ "Município de Residência",
+  TRAT_GESTANTE_ADEQUADO ~ "Adequação do Tratamento (Gestante)",
+  FAIXA_ETARIA_CAT ~ "Faixa Etária (anos)",
+  CS_RACA_CAT ~ "Raça/Cor (Agrupada)",
+  CS_ESCOL_N_CAT ~ "Escolaridade (Agrupada)",
+  TPEVIDENCI_CAT ~ "Classificação Clínica (Agrupada)",
+  CS_GESTANT_CAT ~ "Idade Gestacional (Diagnóstico)",
+  ANO_SGB_fct ~ "Ano da Notificação"
+)
+```
+
+\newpage
+# Introdução
+
+Este relatório apresenta uma análise epidemiológica dos casos de sífilis gestacional notificados no estado de `r UF_ESTUDO`, Brasil, durante o período de `r ANO_INICIO` a `r ANO_FIM`. A sífilis gestacional continua sendo um importante problema de saúde pública devido ao seu potencial de transmissão vertical, resultando em sífilis congênita com graves consequências para o recém-nascido.
+
+O objetivo deste estudo é descrever o perfil epidemiológico dos casos de sífilis gestacional (`r format(TOTAL_CASOS, big.mark = ".")` casos), avaliar aspectos do diagnóstico e tratamento, explorar a distribuição espacial e temporal, e identificar potenciais fatores associados ao manejo inadequado da doença, utilizando dados do Sistema de Informação de Agravos de Notificação (SINAN).
+
+# Metodologia
+
+## Fonte de Dados e População do Estudo
+
+Foram utilizados dados secundários de domínio público do SINAN referentes à sífilis em gestantes (SIFG) para o estado de `r UF_ESTUDO` (UF `r UF_CODIGO`), compreendendo notificações realizadas entre `r ANO_INICIO` e `r ANO_FIM`. O banco de dados foi obtido do DATASUS, processado e traduzido utilizando scripts em R (v. `r getRversion()`), incluindo a padronização de códigos municipais para o formato de 7 dígitos do IBGE.
+
+## Variáveis Analisadas
+
+As variáveis incluídas na análise foram agrupadas em:
+
+*   **Características sociodemográficas:** idade materna (anos), raça/cor autodeclarada, nível de escolaridade.
+*   **Características da gestação:** idade gestacional no momento do diagnóstico (trimestres).
+*   **Características clínicas e laboratoriais:** classificação clínica da sífilis (primária, secundária, terciária, latente, ignorada), resultados de testes não treponêmicos (VDRL/RPR) e confirmatórios.
+*   **Tratamento:** esquema terapêutico utilizado na gestante, informação sobre tratamento concomitante do(s) parceiro(s) sexual(is).
+*   **Informações temporais e espaciais:** ano da notificação, município de residência da gestante.
+
+## Análise de Dados
+
+### Análise Descritiva
+Realizada por meio de frequências absolutas e relativas (%) para variáveis categóricas, e medidas de tendência central (média, mediana) e dispersão (desvio padrão - DP, intervalo interquartil - IIQ, mínimo, máximo) para variáveis numéricas. Tabelas foram geradas com o pacote `gtsummary` para formatação adequada em HTML. A distribuição espacial dos casos por município de residência foi visualizada por meio de mapa coroplético (número absoluto de casos). A tendência temporal foi avaliada graficamente pelo número de casos por ano.
+
+### Definição de Tratamento Adequado da Gestante
+A adequação do tratamento da gestante foi avaliada com base nas diretrizes do Protocolo Clínico e Diretrizes Terapêuticas (PCDT) para Atenção Integral às Pessoas com Infecções Sexualmente Transmissíveis (IST) do Ministério da Saúde (versão 2020/2022), adaptadas às informações disponíveis no SINAN (`TPEVIDENCI` e `TPESQUEMA`). A variável `TRAT_GESTANTE_ADEQUADO` foi criada com as seguintes categorias e critérios:
+
+1.  **Adequado:**
+    *   Sífilis primária, secundária ou latente recente (`TPEVIDENCI` = 1, 2 ou 4) E tratamento com Penicilina G Benzatina 2.400.000 UI (`TPESQUEMA` = 1). (Nota: O SINAN não distingue latente recente de tardia; assumimos aqui que 'Latente' requereria o esquema para recente/secundária para ser considerado adequado com dose única, uma simplificação).
+    *   Sífilis terciária (`TPEVIDENCI` = 3) E tratamento com Penicilina G Benzatina 7.200.000 UI (`TPESQUEMA` = 3).
+2.  **Inadequado:**
+    *   Classificação clínica (1, 2, 3 ou 4) E esquema terapêutico diferente do preconizado para aquela fase (e.g., dose insuficiente ou excessiva segundo esta classificação simplificada).
+    *   Uso de "Outro esquema" (`TPESQUEMA` = 4), pois o SINAN não detalha qual esquema alternativo foi usado e se foi apropriado (ex: alergia à penicilina documentada).
+3.  **Não Tratada:**
+    *   Registro explícito de "Não realizado" (`TPESQUEMA` = 5).
+4.  **Tratamento Ignorado:**
+    *   Registro explícito de "Ignorado" (`TPESQUEMA` = 9) ou campo `TPESQUEMA` ausente (NA).
+5.  **Adequação Indeterminada:**
+    *   Classificação clínica "Ignorada" (`TPEVIDENCI` = 9) ou ausente (NA), impossibilitando a avaliação da adequação do esquema registrado.
+6.  **Avaliação Inconclusiva:** Combinações não previstas nos critérios acima.
+
+Para a análise de regressão, foi criada a variável binária `TRAT_ADEQUADO_BIN`, comparando "Adequado" versus "Inadequado/Não Tratado" (agrupando as categorias Inadequado, Inadequado (Outro Esquema) e Não Tratada). Casos com status "Tratamento Ignorado" ou "Adequação Indeterminada" foram excluídos desta análise específica.
+
+### Análise de Regressão Logística
+Foi utilizada regressão logística binomial para identificar fatores independentemente associados ao desfecho `TRAT_ADEQUADO_BIN = "Inadequado/Não Tratado"` em comparação com `TRAT_ADEQUADO_BIN = "Adequado"` (categoria de referência). As variáveis preditoras incluídas no modelo multivariado foram: faixa etária (categorizada), raça/cor (agrupada), escolaridade (agrupada), classificação clínica da sífilis (agrupada), idade gestacional no diagnóstico (categorizada) e ano da notificação (categórico). Foram calculados Odds Ratios (OR) ajustados com seus respectivos Intervalos de Confiança de 95% (IC 95%). Um valor de p < 0,05 foi considerado estatisticamente significativo.
+
+### Ferramentas
+Todas as análises e visualizações foram realizadas utilizando o software R versão `r getRversion()`. Os principais pacotes utilizados foram `tidyverse` para manipulação de dados, `gtsummary` e `knitr` para tabelas, `ggplot2`, `sf` e `geobr` para gráficos e mapas, e `finalfit` para o modelo de regressão e forest plot. Os resultados (tabelas e gráficos) foram exportados para a subpasta `/relatorio`.
+
+\newpage
+# Resultados
+
+## 1. Perfil Geral dos Casos e Qualidade dos Dados
+
+No período de `r ANO_INICIO` a `r ANO_FIM`, foram notificados `r format(TOTAL_CASOS, big.mark = ".")` casos de sífilis gestacional em `r UF_ESTUDO`.
+
+A Tabela \@ref(tab:missing-data-summary-kable-1) apresenta um resumo da completude dos dados para as 15 variáveis com maior proporção de valores ausentes ou ignorados. Campos cruciais como `DSMOTIVO` (motivo do não tratamento do parceiro), `TPMOTPARC` (categoria do motivo), `ID_OCUPA_N` (ocupação) e dados detalhados do tratamento do parceiro (`TPESQPAR`) apresentaram mais de 30% de dados faltantes, limitando análises mais aprofundadas nessas áreas. A escolaridade (`CS_ESCOL_N`) e os títulos do teste VDRL (`DSTITULO1`) também apresentaram lacunas importantes.
+
+```{r missing-data-summary-kable-1, tab.id="missing-summary", tab.cap="Principais variáveis com dados ausentes na base de sífilis gestacional, Alagoas, 2010-2022."}
+# Calcular NAs para TODAS as colunas e depois filtrar/ordenar
+tabela_missing_full <- df_analise %>%
+  summarise(across(everything(), ~sum(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "Variável", values_to = "Nº Ausentes") %>%
+  mutate(`% Ausente` = (`Nº Ausentes` / TOTAL_CASOS)) %>%
+  filter(`Nº Ausentes` > 0) %>%
+  arrange(desc(`% Ausente`))
+
+tabela_missing_top15 <- head(tabela_missing_full, 15) %>% 
+  mutate(`% Ausente` = scales::percent(`% Ausente`, accuracy = 0.1, decimal.mark = ","))
+
+knitr::kable(tabela_missing_top15,
+             col.names = c("Variável", "Nº Ausentes", "% Ausente"),
+             caption = "15 Variáveis com maior proporção de dados ausentes.") 
+
+# Salvar a tabela completa de NAs
+salvar_tabela_xlsx(tabela_missing_full %>% mutate(`% Ausente` = round(`% Ausente`*100, 1)), 
+                   "tabela_dados_ausentes_completa")
+```
+
+## 2. Epidemiologia Descritiva
+
+### 2.1. Distribuição por Características Pessoais
+
+```{r tbl-caracteristicas-pessoais-1, tab.id="caracteristicas", tab.cap="Distribuição dos casos de sífilis gestacional segundo características sociodemográficas e gestacionais, Alagoas, 2010-2022."}
+# Usar labels definidos no setup
+# Usar tryCatch para isolar erros nesta tabela específica
+tbl_caracteristicas <- NULL
+tryCatch({
+  
+  # 1. Selecionar colunas e verificar se existem
+  vars_to_select <- names(labels_pt)[names(labels_pt) %in% 
+                       c("AGE_YEARS", "CS_RACA", "CS_ESCOL_N", "CS_GESTANT", "TPEVIDENCI")]
+  if (length(vars_to_select) == 0) {
+    stop("Nenhuma coluna válida selecionada para a tabela de características.")
+  }
+  df_subset <- df_analise %>% select(all_of(vars_to_select))
+  
+  # 2. Criar a tabela gtsummary (sem add_overall, sem modify_header)
+  tbl_caracteristicas <- df_subset %>%
+    tbl_summary(
+      label = labels_pt, # Aplicar labels em português
+      type = list(AGE_YEARS ~ "continuous2"), 
+      statistic = list(all_continuous() ~ c("{mean} ({sd})", 
+                                             "{median} ({p25}, {p75})", 
+                                             "{min}, {max}"),
+                       all_categorical() ~ "{n} ({p}%)"),
+      digits = list(all_continuous() ~ 1, 
+                    all_categorical(stat = "p") ~ 1), 
+      missing_text = "Ignorado/Ausente"
+    ) %>%
+    bold_labels() 
+
+  # 3. Printar a tabela para HTML
+  print(tbl_caracteristicas) 
+
+  # 4. Salvar os dados brutos da tabela para Excel
+  salvar_tabela_xlsx(tbl_caracteristicas, "tabela_caracteristicas_pessoais_clinicas")
+
+}, error = function(e) {
+  # Se ocorrer um erro dentro do tryCatch, mostrar mensagem
+  cat(paste("\n!! ERRO ao gerar Tabela de Características Pessoais !!\n", e$message, "\n"))
+})
+
+# Adicionar uma verificação extra fora do tryCatch
+if (is.null(tbl_caracteristicas)) {
+   cat("\nA Tabela de Características Pessoais não pôde ser gerada devido a um erro anterior.\n")
+}
+```
+
+A idade média das gestantes foi de `r sprintf("%.1f", mean(df_analise$AGE_YEARS, na.rm = TRUE))` anos (DP = `r sprintf("%.1f", sd(df_analise$AGE_YEARS, na.rm = TRUE))`), com mediana de `r median(df_analise$AGE_YEARS, na.rm = TRUE)` anos. A faixa etária variou de `r min(df_analise$AGE_YEARS, na.rm = TRUE)` a `r max(df_analise$AGE_YEARS, na.rm = TRUE)` anos. A raça/cor parda foi a mais frequentemente autodeclarada. Observa-se uma concentração de casos em mulheres com menor escolaridade (até ensino fundamental incompleto). O diagnóstico ocorreu mais frequentemente no segundo e terceiro trimestres. A classificação clínica da sífilis foi "Ignorada" em uma proporção substancial dos casos.
+
+```{r plot-idade-materna-1, fig.cap="Distribuição da idade materna dos casos de sífilis gestacional, Alagoas, 2010-2022.", fig.width=7, fig.height=5}
+# --- Debugging: Using hardcoded colors and explicit print ---
+tryCatch({
+  
+  # Ensure the input column exists and is numeric
+  if (!"AGE_YEARS" %in% names(df_analise)) {
+     stop("Coluna 'AGE_YEARS' não encontrada no dataframe 'df_analise'.")
+  }
+  if (!is.numeric(df_analise$AGE_YEARS)) {
+     stop("Coluna 'AGE_YEARS' não é numérica.")
+  }
+   if (sum(!is.na(df_analise$AGE_YEARS)) == 0) {
+     stop("Coluna 'AGE_YEARS' não contém valores não-NA.")
+   }
+
+  # Create the plot object
+  plot_idade <- ggplot(data = df_analise, mapping = aes(x = AGE_YEARS)) +
+    geom_histogram(mapping = aes(y = after_stat(density)), # Mapping inside aes
+                   binwidth = 1, 
+                   fill = "#0072B2",  # SINGLE Hardcoded fill color (blue)
+                   color = "white",    # SINGLE Hardcoded border color
+                   alpha = 0.8) +
+    geom_density(color = "#D55E00",    # SINGLE Hardcoded density line color (orange)
+                 linewidth = 1.1) +
+    geom_vline(xintercept = mean(df_analise$AGE_YEARS, na.rm = TRUE), 
+               linetype = "dashed", 
+               color = "red", 
+               linewidth = 0.8) +
+    geom_text(mapping = aes(x = mean(df_analise$AGE_YEARS, na.rm=TRUE) * 1.05, 
+                            y = 0.065, # Adjusted y position slightly
+                            label = paste("Média =", sprintf("%.1f", mean(AGE_YEARS, na.rm = TRUE)))
+                           ), 
+              color = "red", 
+              size = 3.5, 
+              hjust = 0) +
+    labs(title = "Distribuição da Idade Materna",
+         subtitle = paste("Total de Casos:", TOTAL_CASOS),
+         x = "Idade Materna (anos)",
+         y = "Densidade") +
+    scale_x_continuous(breaks = seq(10, 50, by = 5), limits = c(min(df_analise$AGE_YEARS, na.rm=T)-1, max(df_analise$AGE_YEARS, na.rm=T)+1) ) + # Set explicit limits
+    scale_y_continuous(labels = label_percent(accuracy = 1, decimal.mark = ",")) +
+    theme_minimal(base_size = 11) # Applying theme directly just in case global theme is an issue
+
+  # Explicitly print the plot object
+  print(plot_idade) 
+  
+  # Save the plot object
+  salvar_grafico_html(plot_idade, "plot_distribuicao_idade_materna")
+
+}, error = function(e) {
+  # Print error message clearly if something goes wrong in this chunk
+  cat("\n\n--- ERROR IN CHUNK: plot-idade-materna-1 ---\n")
+  print(e$message)
+  cat("-------------------------------------------\n\n")
+  # Optionally print traceback for more detail
+  # print(rlang::last_error())
+})
+```
+### 2.1.1. Tendência da Idade Materna ao Longo dos Anos
+
+Para analisar mudanças mais amplas no perfil etário das gestantes, os anos foram agrupados em três períodos: 2010-2014, 2015-2018 e 2019-2022.
+
+```{r plot-idade-por-periodo, fig.cap="Distribuição da idade materna dos casos de sífilis gestacional por período de notificação, Alagoas. Os violinos mostram a densidade da distribuição, as caixas internas o IQR e mediana, e os pontos vermelhos indicam a mediana da idade para cada período.", fig.width=9, fig.height=6}
+
+# 1. Criar variável de Período
+df_analise_periodo <- df_analise %>%
+  mutate(
+    Periodo = case_when(
+      ANO_SGB %in% 2010:2014 ~ "2010-2014",
+      ANO_SGB %in% 2015:2018 ~ "2015-2018",
+      ANO_SGB %in% 2019:2022 ~ "2019-2022",
+      TRUE ~ "Outro" # Caso haja anos fora do esperado
+    ),
+    # Converter para fator ordenado
+    Periodo = factor(Periodo, levels = c("2010-2014", "2015-2018", "2019-2022"))
+  ) %>%
+  filter(!is.na(Periodo), !is.na(AGE_YEARS)) # Remover NAs relevantes
+
+# 2. Calcular estatísticas descritivas por período
+idade_stats_por_periodo <- df_analise_periodo %>%
+  group_by(Periodo) %>%
+  summarise(
+    N = n(),
+    Media = mean(AGE_YEARS, na.rm = TRUE),
+    DP = sd(AGE_YEARS, na.rm = TRUE),
+    Mediana = median(AGE_YEARS, na.rm = TRUE),
+    Q1 = quantile(AGE_YEARS, 0.25, na.rm = TRUE),
+    Q3 = quantile(AGE_YEARS, 0.75, na.rm = TRUE),
+    Min = min(AGE_YEARS, na.rm = TRUE),
+    Max = max(AGE_YEARS, na.rm = TRUE)
+  ) %>%
+  mutate(across(where(is.numeric) & !c(Periodo, N), ~round(., 1)))
+
+# 3. Verificar se há dados para plotar
+if (nrow(df_analise_periodo) == 0) {
+  cat("Não há dados válidos para gerar o gráfico de idade por período.")
+} else {
+
+  # 4. Criar o Plot (Violino + Boxplot + Ponto Mediana)
+  plot_idade_periodo <- ggplot(df_analise_periodo, aes(x = Periodo, y = AGE_YEARS)) +
+    
+    # Violino: Mapear fill para o período
+    geom_violin(mapping = aes(fill = Periodo), 
+                color = NA, # Sem contorno no violino
+                alpha = 0.7, # Leve transparência
+                trim = TRUE, 
+                scale = "width",
+                draw_quantiles = NULL) + # Não desenhar quantis padrão no violino
+                
+    # Boxplot sobreposto 
+    geom_boxplot(width = 0.15, 
+                 fill = "white", 
+                 color = "grey20", # Contorno mais escuro para destacar
+                 outlier.shape = 21, 
+                 outlier.size = 1.5, 
+                 outlier.fill = "grey80",
+                 alpha = 0.9,
+                 coef = 1.5) + # Comprimento padrão do whisker (1.5 * IQR)
+
+    # Adicionar pontos para a MEDIANA de cada período
+    stat_summary(fun = median, geom = "point", 
+                 shape = 23, # Losango preenchido
+                 size = 3.5, 
+                 fill = "firebrick", # Cor vermelha escura
+                 color = "white", # Contorno branco
+                 stroke = 1) + 
+
+    # Escala de cores Viridis (Opção C = Plasma, D = Viridis padrão)
+    scale_fill_viridis_d(option = "plasma") + 
+    
+    scale_y_continuous(breaks = seq(10, 50, by = 5), limits = c(5, 55)) + # Ajustar limites eixo Y
+    labs(title = "Tendência da Idade Materna por Período de Notificação",
+         subtitle = "Distribuição, mediana (linha interna), IQR (caixa) e pontos de mediana (losango vermelho)",
+         x = "Período da Notificação",
+         y = "Idade Materna (anos)") +
+    theme(legend.position = "none") # Legenda de fill não é necessária se as cores são distintas
+
+  # 5. Printar e Salvar
+  print(plot_idade_periodo)
+  salvar_grafico_html(plot_idade_periodo, "plot_distribuicao_idade_por_periodo", width=9, height=6)
+  salvar_tabela_xlsx(idade_stats_por_periodo, "tabela_idade_stats_por_periodo")
+}
+```
+A Figura \@ref(fig:plot-idade-por-periodo) demonstra uma sutil, porém notável, tendência de rejuvenescimento no perfil etário das gestantes com sífilis ao longo dos períodos analisados. A `Mediana` da idade materna, indicada pelos losangos vermelhos, diminuiu ligeiramente de `r filter(idade_stats_por_periodo, Periodo == "2010-2014") %>% pull(Mediana)` anos no período `r filter(idade_stats_por_periodo, Periodo == "2010-2014") %>% pull(Periodo)` para `r filter(idade_stats_por_periodo, Periodo == "2019-2022") %>% pull(Mediana)` anos no período `r filter(idade_stats_por_periodo, Periodo == "2019-2022") %>% pull(Periodo)`. A `Media` da idade também apresentou uma leve redução entre o primeiro e os períodos subsequentes. Embora a dispersão (visualizada pela altura das caixas do boxplot e a forma dos violinos) não tenha mudado drasticamente, parece haver uma concentração ligeiramente maior de casos em idades mais jovens nos períodos mais recentes (`r filter(idade_stats_por_periodo, Periodo == "2015-2018") %>% pull(Periodo)` e `r filter(idade_stats_por_periodo, Periodo == "2019-2022") %>% pull(Periodo)`) em comparação com o período inicial (`r filter(idade_stats_por_periodo, Periodo == "2010-2014") %>% pull(Periodo)`).
+
+
+
+### 2.1.2. Perfil Sociodemográfico: Raça/Cor e Escolaridade
+
+
+```{r plot-raca-escolaridade-final, fig.cap="Distribuição percentual dos casos por Raça/Cor autodeclarada (A) e Nível de Escolaridade (B), Alagoas, 2010-2022.", fig.width=10, fig.height=7}
+
+# --- Preparação dos Dados ---
+
+# Dados para Raça/Cor
+plot_raca_data <- df_analise %>%
+  mutate(CS_RACA = fct_explicit_na(CS_RACA, na_level = "9-Ignorado")) %>% 
+  count(CS_RACA) %>% 
+  filter(!is.na(CS_RACA)) %>% # Remover NAs explícitos se ainda houver
+  mutate(
+    N_Total = sum(n),
+    Porcentagem = n / N_Total,
+    # Ordenar por frequência para o gráfico
+    CS_RACA_ORD = fct_reorder(CS_RACA, n, .desc = TRUE), 
+    LabelNoPrefix = gsub("^.-", "", CS_RACA) # Remover prefixo para label
+  ) %>%
+  arrange(desc(n)) # Ordenar dados
+
+# ---- LOGGING para Console: Raça/Cor ----
+cat("\n--- Dados para Gráfico: Raça/Cor ---\n")
+print(plot_raca_data %>% select(Raça_Cor = CS_RACA, Contagem = n, Porcentagem), n = Inf)
+cat("------------------------------------\n\n")
+# ----------------------------------------
+
+# Dados para Escolaridade
+# Definir a ordem correta (menor para maior)
+niveis_escolaridade_ordem <- c(
+  "0-Analfabeto", "1-EF Incompleto(1-4)", "2-EF Completo(4)", 
+  "3-EF Incompleto(5-8)", "4-EF Completo", "5-EM Incompleto", 
+  "6-EM Completo", "7-Superior Incompleto", "8-Superior Completo", 
+  "9-Ignorado" # Ignorado por último (Não se aplica é removido)
+  # "10-Não se aplica" # Removido da ordem
+)
+
+plot_escol_data <- df_analise %>%
+  # Tratar NAs como 'Ignorado' e remover 'Não se aplica' ANTES de fatorizar
+  mutate(CS_ESCOL_N = ifelse(is.na(CS_ESCOL_N), "9-Ignorado", as.character(CS_ESCOL_N))) %>%
+  filter(CS_ESCOL_N != "10-Não se aplica") %>%
+  mutate(
+      # Converter para fator ORDENADO usando os níveis definidos
+      CS_ESCOL_N_ORD = factor(CS_ESCOL_N, levels = niveis_escolaridade_ordem, ordered = TRUE)
+  ) %>%
+  count(CS_ESCOL_N_ORD, .drop = FALSE) %>% 
+  filter(!is.na(CS_ESCOL_N_ORD)) %>% # Remover NAs que possam surgir
+  mutate(
+    N_Total = sum(n),
+    Porcentagem = n / N_Total,
+    EscolaridadeLabel = gsub("^.{1,2}-", "", CS_ESCOL_N_ORD),
+    LabelPos = paste0(n, " (", scales::percent(Porcentagem, accuracy = 0.1, decimal.mark = ","), ")")
+  ) %>%
+  arrange(CS_ESCOL_N_ORD) # Manter ordenado por nível educacional
+
+# ---- LOGGING para Console: Escolaridade ----
+cat("\n--- Dados para Gráfico: Escolaridade ---\n")
+print(plot_escol_data %>% select(Escolaridade_Ord = CS_ESCOL_N_ORD, Label_Eixo = EscolaridadeLabel, Contagem = n, Porcentagem), n = Inf)
+cat("---------------------------------------\n\n")
+# -------------------------------------------
+
+
+# --- Gráfico A: Raça/Cor (Bar Chart Horizontal) ---
+plot_raca <- ggplot(plot_raca_data, aes(x = n, y = fct_rev(LabelNoPrefix), fill = CS_RACA_ORD)) +
+  geom_col(show.legend = FALSE, alpha = 0.9) +
+  geom_text(aes(label = paste0(n, " (", scales::percent(Porcentagem, accuracy = 0.1, decimal.mark = ","), ")")), 
+            hjust = -0.05, size = 3.0, fontface = "bold", color = "black") +
+  scale_fill_viridis_d(guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(0.01, 0.18))) + # Mais espaço para labels
+  labs(title = "A. Raça/Cor Autodeclarada", x = NULL, y = NULL) +
+  theme(axis.text.x = element_blank(), # Remover texto e ticks do eixo x
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x = element_blank(), # Remover linhas de grade verticais
+        panel.grid.minor.x = element_blank())
+
+
+# --- Gráfico B: Escolaridade (Bar Chart Horizontal Ordenado) ---
+plot_escolaridade <- ggplot(plot_escol_data, 
+                            # Usar fct_relevel para garantir ordem, fct_rev para plotar de baixo para cima
+                            aes(x = n, y = fct_rev(factor(EscolaridadeLabel, levels=unique(EscolaridadeLabel))), fill = Porcentagem)) + 
+  geom_col(show.legend = TRUE, alpha = 0.9) +
+  geom_text(aes(label = LabelPos), 
+            hjust = -0.05, # Colocar todos os labels fora
+            size = 3.0, fontface = "bold", color = "black") +
+  scale_fill_viridis_c(option = "cividis", name = "% Casos", 
+                       labels = label_percent(decimal.mark = ",")) + 
+  scale_x_continuous(expand = expansion(mult = c(0.01, 0.18))) + # Mais espaço para labels
+  labs(title = "B. Nível de Escolaridade", 
+       x = "Número de Casos", 
+       y = NULL) 
+  # +
+  # theme(legend.position = c(1, 0.25), # Ajustar posição da legenda
+  #       legend.key.height = unit(0.8, 'cm')) # Altura da barra da legenda
+
+
+# --- Combinar Plots (Patchwork) ---
+plot_raca_escolaridade_combinado <- plot_raca / plot_escolaridade +
+  plot_layout(heights = c(0.5, 0.5)) # Ajustar alturas relativas se necessário
+
+print(plot_raca_escolaridade_combinado)
+salvar_grafico_html(plot_raca_escolaridade_combinado, "plot_raca_escolaridade_barras", width=9, height=7, dpi=200) 
+
+# Salvar os dados processados (já filtrados e calculados)
+salvar_tabela_xlsx(plot_raca_data %>% select(CS_RACA, LabelNoPrefix, n, Porcentagem), "dados_plot_raca_final")
+salvar_tabela_xlsx(plot_escol_data %>% select(CS_ESCOL_N_ORD, EscolaridadeLabel, n, Porcentagem), "dados_plot_escolaridade_final")
+```
+A análise das características sociodemográficas (Figura \@ref(fig:plot-raca-escolaridade-final)) revela informações importantes sobre o perfil das gestantes notificadas com sífilis em Alagoas.
+
+Quanto à **Raça/Cor** autodeclarada, observa-se uma predominância expressiva da categoria `r plot_raca_data$LabelNoPrefix[1]`, que compreende `r format_percent_pt(plot_raca_data$Porcentagem[1])` do total de casos. As categorias `r plot_raca_data$LabelNoPrefix[2]` e `r plot_raca_data$LabelNoPrefix[3]` aparecem em seguida com proporções semelhantes. A categoria "Ignorado" representa `r plot_raca_data %>% filter(grepl("Ignorado", CS_RACA)) %>% pull(Porcentagem) %>% format_percent_pt()` dos casos, indicando uma perda de informação relevante nesse campo. As demais categorias ("Amarela" e "Indígena") apresentam baixa frequência.
+
+Em relação ao **Nível de Escolaridade**, o gráfico demonstra uma concentração de casos nos níveis mais baixos. As categorias `r plot_escol_data$EscolaridadeLabel[1]` e `r plot_escol_data$EscolaridadeLabel[2]` (considerando a ordem no gráfico, que é do menor para o maior nível) são as mais frequentes. A categoria "Ignorado" também possui uma representatividade alta (`r plot_escol_data %>% filter(grepl("Ignorado", CS_ESCOL_N_ORD)) %>% pull(Porcentagem) %>% format_percent_pt()`), dificultando uma análise completa do perfil educacional. Poucas gestantes possuíam ensino superior. A categoria "Não se aplica" foi excluída da visualização por não representar um nível educacional.
+
+### 2.2. Distribuição Temporal
+
+```{r plot-tendencia-temporal-1, fig.cap="Número de casos notificados de sífilis gestacional por ano, Alagoas, 2010-2022.", fig.width=8, fig.height=5}
+casos_por_ano <- df_analise %>%
+  group_by(ANO_SGB) %>%
+  summarise(N_Casos = n(), .groups = 'drop')
+
+plot_tendencia <- ggplot(casos_por_ano, aes(x = ANO_SGB, y = N_Casos)) +
+  geom_line(color = cores_principais, linewidth = 1.2) + 
+  geom_point(color = cores_principais, size = 3, shape=21, fill="white", stroke=1.2) + 
+  geom_text(aes(label = N_Casos), vjust = -1.0, size = 3.2, color = "black", fontface="bold") +
+  scale_x_continuous(breaks = ANO_INICIO:ANO_FIM) +
+  scale_y_continuous(limits = c(0, max(casos_por_ano$N_Casos) * 1.15), 
+                     labels = label_number(big.mark = ".")) +
+  labs(title = "Tendência Temporal dos Casos Notificados de Sífilis Gestacional",
+       x = "Ano da Notificação",
+       y = "Número de Casos") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust=1))
+
+plot_tendencia
+salvar_grafico_html(plot_tendencia, "plot_tendencia_temporal_casos")
+salvar_tabela_xlsx(casos_por_ano, "dados_tendencia_temporal_casos")
+```
+Observa-se um aumento expressivo no número de casos notificados de sífilis gestacional em Alagoas ao longo do período analisado, com um pico notável nos últimos anos. Este aumento pode refletir uma combinação de fatores, incluindo a real elevação da incidência, a expansão da testagem durante o pré-natal e a melhoria do sistema de vigilância epidemiológica.
+
+### 2.3. Distribuição Espacial
+
+```{r map-distribuicao-municipal, fig.cap="Distribuição espacial do número absoluto de casos de sífilis gestacional por município de residência, Alagoas, 2010-2022.", fig.width=8, fig.height=7}
+# Obter shapefile dos municípios de Alagoas
+shape_al <- NULL
+tryCatch({
+  shape_al <- read_municipality(code_muni = UF_CODIGO, year = 2020) # Usar ano mais recente
+}, error = function(e){
+  message("Erro ao baixar shapefile de Alagoas com geobr: ", e$message)
+})
+
+if (!is.null(shape_al)) {
+  # Calcular casos por município de residência (usando código de 7 dígitos)
+  casos_por_municipio_mapa <- df_analise %>%
+    filter(!is.na(ID_MN_RESI)) %>% # Filtrar NAs no código do município
+    group_by(code_muni = ID_MN_RESI) %>% # Agrupar pelo código de 7 dígitos
+    summarise(N_Casos = n(), .groups = 'drop')
+    
+  # Juntar dados de casos com o shapefile
+  mapa_dados <- shape_al %>%
+    mutate(code_muni = as.character(code_muni)) %>% # Garantir tipo character
+    left_join(casos_por_municipio_mapa, by = "code_muni") %>%
+    mutate(N_Casos = ifelse(is.na(N_Casos), 0, N_Casos)) # Municípios sem casos ficam com 0
+
+  # Criar o mapa coroplético
+  plot_mapa_casos <- ggplot() +
+    geom_sf(data = mapa_dados, aes(fill = N_Casos), color = "gray70", linewidth = 0.1) +
+    scale_fill_viridis_c(option = "plasma", name = "Nº Casos\n(Absoluto)", direction = -1, 
+                         labels=label_number(big.mark="."), 
+                         breaks=pretty_breaks(n=6),
+                         guide = guide_colorbar(barwidth = 0.8, barheight = 10)) +
+    labs(title = "Número de Casos de Sífilis Gestacional por Município de Residência",
+         subtitle = paste("Alagoas,", ANO_INICIO, "-", ANO_FIM, "(Total =", format(sum(mapa_dados$N_Casos), big.mark="."), "casos mapeados)"),
+         caption = "Fonte: SINAN/DATASUS. Nota: Municípios sem casos notificados aparecem na cor base.") +
+    theme_void() + # Tema limpo para mapas
+    theme(plot.title = element_text(hjust = 0.5, face="bold"),
+          plot.subtitle = element_text(hjust = 0.5),
+          legend.position = c(0.85, 0.3), # Ajustar posição da legenda
+          legend.title = element_text(size=9, face="bold"),
+          legend.text = element_text(size=8))
+
+  print(plot_mapa_casos)
+  salvar_grafico_html(plot_mapa_casos, "mapa_casos_municipio_residencia", width=8, height=7)
+  salvar_tabela_xlsx(mapa_dados %>% sf::st_drop_geometry() %>% select(code_muni, name_muni, N_Casos) %>% arrange(desc(N_Casos)), 
+                     "dados_mapa_casos_municipio_residencia")
+
+} else {
+  cat("Não foi possível gerar o mapa: shapefile de Alagoas não pôde ser carregado.")
+}
+```
+A Figura \@ref(fig:map-distribuicao-municipal) mostra a distribuição geográfica do número absoluto de casos acumulados no período por município de residência. Observa-se, como esperado, uma concentração maior de casos na capital, Maceió, e em outros municípios mais populosos ou polos regionais. A interpretação completa do risco espacial exigiria o cálculo de taxas de incidência, utilizando dados populacionais como denominador.
+
+## 3. Avaliação do Diagnóstico e Tratamento
+
+### 3.1. Diagnóstico Laboratorial
+
+```{r tbl-diagnostico-laboratorial-1, tab.id="testes-diag", tab.cap="Resultados dos testes diagnósticos para sífilis gestacional, Alagoas, 2010-2022."}
+# Usar labels definidos no setup
+tbl_testes <- df_analise %>%
+  select(any_of(names(labels_pt)[names(labels_pt) %in% 
+             c("TPTESTE1", "TPCONFIRMA")])) %>%
+  tbl_summary(
+    label = labels_pt, # Aplicar labels em português
+    missing_text = "Ignorado/Ausente",
+    statistic = list(all_categorical() ~ "{n} ({p}%)"),
+    digits = list(all_categorical(stat = "p") ~ 1) # Percentuais com 1 casa decimal
+  ) %>%
+  modify_header(label ~ "**Tipo de Teste**") %>%
+  bold_labels()
+
+tbl_testes
+salvar_tabela_xlsx(tbl_testes, "tabela_testes_diagnosticos")
+```
+A maioria dos casos (`r format_percent_pt(mean(df_analise$TPTESTE1 == "1-Reagente", na.rm=TRUE))`) teve teste não treponêmico (VDRL/RPR) reagente. No entanto, para `r format_percent_pt(mean(df_analise$TPTESTE1 == "3-Não realizado" | df_analise$TPTESTE1 == "9-Ignorado" | is.na(df_analise$TPTESTE1), na.rm=TRUE))` dos casos, este teste inicial não foi realizado ou seu resultado foi ignorado/ausente. Quanto ao teste confirmatório, embora `r format_percent_pt(mean(df_analise$TPCONFIRMA == "1-Reagente", na.rm=TRUE))` tenham sido reagentes, uma proporção significativa (`r format_percent_pt(mean(df_analise$TPCONFIRMA == "3-Não realizado", na.rm=TRUE))`) não o realizou, representando uma lacuna na confirmação diagnóstica preconizada pelo Ministério da Saúde.
+
+### 3.2. Adequação do Tratamento da Gestante
+
+A adequação do tratamento foi avaliada conforme critérios detalhados na seção Metodologia, baseados no PCDT IST.
+
+```{r definir-tratamento-adequado-1}
+# Variável TRAT_GESTANTE_ADEQUADO já foi criada no chunk setup ou anterior
+# Apenas verificar se existe
+if (!"TRAT_GESTANTE_ADEQUADO" %in% names(df_analise)) {
+  stop("ERRO INTERNO: Variável TRAT_GESTANTE_ADEQUADO não foi criada.")
+}
+```
+
+```{r plot-tratamento-gestante-1, fig.cap="Adequação do tratamento da sífilis gestacional, Alagoas, 2010-2022."}
+dados_plot_trat_gestante <- df_analise %>%
+  filter(!is.na(TRAT_GESTANTE_ADEQUADO)) %>% # Remover NAs se houver
+  group_by(TRAT_GESTANTE_ADEQUADO) %>%
+  summarise(N = n(), .groups = 'drop') %>%
+  mutate(Porcentagem = N / sum(N),
+         TRAT_GESTANTE_ADEQUADO = fct_reorder(TRAT_GESTANTE_ADEQUADO, N, .desc=FALSE))
+
+plot_trat_gest <- ggplot(dados_plot_trat_gestante, 
+                            aes(x = N, y = TRAT_GESTANTE_ADEQUADO, fill = TRAT_GESTANTE_ADEQUADO)) +
+  geom_col(show.legend = FALSE, alpha=0.9) +
+  geom_text(aes(label = paste0(N, "\n(", format_percent_pt(Porcentagem), ")")), # Label em duas linhas
+            hjust = -0.1, size = 3.0, lineheight=0.9) + 
+  scale_x_continuous(expand = expansion(mult = c(0, 0.30))) + # Mais espaço
+  scale_fill_viridis_d(guide = "none") +
+  labs(title = "Adequação do Tratamento da Gestante",
+       subtitle = "Baseado na classificação clínica e esquema terapêutico registrados",
+       x = "Número de Casos",
+       y = NULL) +
+   theme(axis.text.y = element_text(size=rel(0.9)))
+
+plot_trat_gest
+salvar_grafico_html(plot_trat_gest, "plot_adequacao_tratamento_gestante", width=8, height=6)
+salvar_tabela_xlsx(dados_plot_trat_gestante, "dados_adequacao_tratamento_gestante")
+```
+A Figura \@ref(fig:plot-tratamento-gestante-1) ilustra a distribuição dos casos segundo a adequação do tratamento. É preocupante notar que uma proporção substancial de gestantes recebeu tratamento classificado como "Inadequado" ou "Não Tratada", ou o status do tratamento foi "Ignorado". Além disso, muitos casos tiveram a adequação classificada como "Indeterminada" devido à falta da classificação clínica inicial. Somente uma parte dos casos pôde ser classificada como tendo recebido tratamento "Adequado" com base nas informações disponíveis.
+
+### 3.3. Tratamento do Parceiro
+
+```{r plot-tratamento-parceiro-1, fig.cap="Status do tratamento do(s) parceiro(s) sexual(is), Alagoas, 2010-2022."}
+dados_plot_trat_parc <- df_analise %>%
+  mutate(TRATPARC = fct_explicit_na(TRATPARC, na_level = "Ausente")) %>% # Tratar NAs
+  group_by(TRATPARC) %>%
+  summarise(N = n(), .groups = 'drop') %>%
+  mutate(Porcentagem = N / sum(N),
+         # Renomear níveis para Português claro
+         Label = case_when(
+            TRATPARC == "1-Sim" ~ "Sim",
+            TRATPARC == "2-Não" ~ "Não",
+            TRATPARC == "9-Ignorado" ~ "Ignorado",
+            TRATPARC == "Ausente" ~ "Ausente (Não Preenchido)",
+            TRUE ~ "Outro" # Caso haja algum valor inesperado
+         ),
+         Label = paste0(Label, "\n(", N, " / ", format_percent_pt(Porcentagem), ")"),
+         TRATPARC = fct_reorder(TRATPARC, N, .desc=FALSE))
+
+plot_trat_parc <- ggplot(dados_plot_trat_parc, 
+                         aes(x = N, y = TRATPARC, fill = TRATPARC)) +
+  geom_col(show.legend = FALSE, alpha=0.9) +
+  geom_text(aes(label = Label),
+            hjust = -0.1, size = 3.0, lineheight=0.9) + 
+  scale_x_continuous(expand = expansion(mult = c(0, 0.30))) + 
+  scale_fill_viridis_d(guide = "none") +
+  scale_y_discrete(labels = function(x) gsub("^.-", "", x)) + # Remover prefixo numérico no eixo
+  labs(title = "Tratamento Concomitante do Parceiro",
+       x = "Número de Casos",
+       y = "Parceiro Tratado?")
+
+plot_trat_parc
+salvar_grafico_html(plot_trat_parc, "plot_tratamento_parceiro")
+salvar_tabela_xlsx(dados_plot_trat_parc %>% select(-Label), "dados_tratamento_parceiro")
+```
+O tratamento do(s) parceiro(s) sexual(is) é fundamental para interromper a cadeia de transmissão da sífilis e prevenir a reinfecção da gestante. Contudo, como demonstrado na Figura \@ref(fig:plot-tratamento-parceiro-1), em uma grande proporção dos casos (`r format_percent_pt(mean(df_analise$TRATPARC == "2-Não" | df_analise$TRATPARC == "9-Ignorado" | is.na(df_analise$TRATPARC), na.rm=TRUE))`) o parceiro não foi tratado, ou essa informação estava ausente/ignorada, representando uma importante falha e oportunidade perdida no controle da doença.
+
+## 4. Epidemiologia Analítica
+
+### 4.1. Entendendo a Regressão Logística e Odds Ratio (OR)
+
+Antes de apresentar os resultados, é importante entender o que a análise de regressão logística busca fazer. Neste estudo, queremos identificar quais características das gestantes (idade, escolaridade, etc.) estão associadas a uma maior ou menor chance de terem recebido um tratamento considerado inadequado ou de não terem sido tratadas, em comparação com aquelas que receberam tratamento adequado.
+
+*   **Regressão Logística:** É uma técnica estatística usada quando queremos prever a probabilidade de um evento binário (com duas categorias) acontecer. No nosso caso, o evento é "Tratamento Inadequado/Não Tratado" versus "Tratamento Adequado".
+*   **Odds Ratio (OR):** É a principal medida resultante da regressão logística. O OR nos diz o quanto as *chances* (odds) de ter o evento (tratamento inadequado/não tratado) mudam para cada grupo em comparação com um grupo de referência.
+    *   **OR = 1:** Significa que não há associação entre a característica e o tratamento inadequado (a chance é a mesma do grupo de referência).
+    *   **OR > 1:** Significa que o grupo tem uma *chance maior* de ter tratamento inadequado em comparação com o grupo de referência. Quanto maior o OR, mais forte a associação.
+    *   **OR < 1:** Significa que o grupo tem uma *chance menor* de ter tratamento inadequado em comparação com o grupo de referência.
+*   **Intervalo de Confiança (IC 95%):** É uma faixa de valores onde temos 95% de confiança de que o verdadeiro OR populacional se encontra. Se o IC 95% **não incluir o valor 1**, a associação é considerada estatisticamente significativa (normalmente com p < 0,05). Se o IC 95% **incluir o valor 1**, não podemos afirmar com confiança que existe uma associação real.
+*   **Valor de p:** Indica a probabilidade de observarmos a associação encontrada (ou uma mais forte) apenas por acaso, se não houvesse associação real. Um valor de p < 0,05 é convencionalmente usado para indicar significância estatística.
+
+### 4.2. Fatores Associados ao Tratamento Inadequado/Não Tratamento da Gestante
+
+Foi ajustado um modelo de regressão logística multivariada para investigar fatores associados à variável `TRAT_ADEQUADO_BIN`. A Tabela \@ref(tab:modelo-regressao-1) e a Figura \@ref(fig:modelo-regressao-1) apresentam os resultados.
+
+```{r modelo-regressao-1, tab.id="regressao", fig.id="forestplot", results='asis', tab.cap="Fatores associados ao tratamento inadequado ou não tratamento da sífilis gestacional (vs. tratamento adequado), Alagoas, 2010-2022 (Modelo Multivariado).", fig.cap="Forest Plot: Odds Ratios ajustados para fatores associados ao Tratamento Inadequado/Não Tratamento da Gestante.", fig.width=10, fig.height=8}
+
+# --- 1. Preparar dados para o modelo (com labels em Português) ---
+df_modelo <- df_analise %>%
+  filter(!is.na(TRAT_ADEQUADO_BIN)) %>% # Filtrar desfecho NA
+  mutate(
+    # Usar nomes diretos em Português para os níveis dos fatores
+    `Faixa Etária (anos)` = cut(AGE_YEARS, 
+                           breaks = c(0, 19, 29, 39, Inf), 
+                           labels = c("≤19", "20-29", "30-39", "≥40"), 
+                           right = TRUE),
+    `Escolaridade` = case_when( 
+      is.na(CS_ESCOL_N) | CS_ESCOL_N == "9-Ignorado" ~ "Ignorada/Ausente",
+      CS_ESCOL_N %in% c("0-Analfabeto", "1-EF Incompleto(1-4)", "2-EF Completo(4)", "3-EF Incompleto(5-8)") ~ "Fundamental Incompleto ou menos",
+      CS_ESCOL_N %in% c("4-EF Completo", "5-EM Incompleto") ~ "Fundamental Completo / Médio Incompleto",
+      CS_ESCOL_N %in% c("6-EM Completo", "7-Superior Incompleto", "8-Superior Completo") ~ "Médio Completo ou mais",
+      TRUE ~ "Outra" # Inclui "Não se aplica" se houver
+    ),
+    `Escolaridade` = factor(`Escolaridade`, levels = c("Médio Completo ou mais", "Fundamental Completo / Médio Incompleto", "Fundamental Incompleto ou menos", "Ignorada/Ausente", "Outra")), # Definir referência
+    `Raça/Cor` = case_when( 
+        CS_RACA == "1-Branca" ~ "Branca",
+        CS_RACA == "4-Parda" ~ "Parda",
+        CS_RACA == "2-Preta" ~ "Preta",
+        CS_RACA %in% c("3-Amarela", "5-Indígena") ~ "Amarela/Indígena",
+        CS_RACA == "9-Ignorado" | is.na(CS_RACA) ~ "Ignorada/Ausente",
+        TRUE ~ "Outra"
+    ),
+    `Raça/Cor` = factor(`Raça/Cor`, levels = c("Branca", "Parda", "Preta", "Amarela/Indígena", "Ignorada/Ausente", "Outra")), 
+    `Idade Gestacional (Diagnóstico)` = case_when(
+        CS_GESTANT == "1-1ºTrimestre" ~ "1º Trimestre",
+        CS_GESTANT == "2-2ºTrimestre" ~ "2º Trimestre",
+        CS_GESTANT == "3-3ºTrimestre" ~ "3º Trimestre",
+        TRUE ~ "Ignorada/Outra"
+    ),
+    `Idade Gestacional (Diagnóstico)` = factor(`Idade Gestacional (Diagnóstico)`, levels = c("1º Trimestre", "2º Trimestre", "3º Trimestre", "Ignorada/Outra")),
+    `Classificação Clínica` = case_when( 
+        TPEVIDENCI %in% c("1-Primária", "2-Secundária") ~ "Primária/Secundária",
+        TPEVIDENCI == "4-Latente" ~ "Latente",
+        TPEVIDENCI == "3-Terciária" ~ "Terciária",
+        is.na(TPEVIDENCI) | TPEVIDENCI == "9-Ignorado" ~ "Ignorada", 
+        TRUE ~ "Outra" 
+    ),
+    `Classificação Clínica` = factor(`Classificação Clínica`, levels = c("Primária/Secundária", "Latente", "Terciária", "Ignorada", "Outra")),
+    `Ano da Notificação` = factor(ANO_SGB) # Usar o fator ANO_SGB_fct que já existe
+  ) %>%
+  # Filtrar NAs E categorias inválidas/outras nas preditoras
+  filter(!is.na(`Faixa Etária (anos)`), !is.na(`Raça/Cor`), !is.na(`Escolaridade`), 
+         !is.na(`Classificação Clínica`), !is.na(`Idade Gestacional (Diagnóstico)`), 
+         `Escolaridade` != "Outra", `Classificação Clínica` != "Outra", `Raça/Cor` != "Outra") 
+
+# Definir variável dependente e preditoras com nomes corretos
+dependent_var_model <- "TRAT_ADEQUADO_BIN" # Nome original da coluna
+explanatory_vars_model <- c("`Faixa Etária (anos)`", "`Raça/Cor`", "`Escolaridade`", 
+                            "`Classificação Clínica`", "`Idade Gestacional (Diagnóstico)`", 
+                            "`Ano da Notificação`") # Usar nomes com crase se tiverem espaços/caracteres especiais
+
+# Garantir que a variável dependente seja fator com o nível de referência correto
+if ("Adequado" %in% unique(na.omit(df_modelo[[dependent_var_model]]))) {
+  df_modelo[[dependent_var_model]] <- factor(df_modelo[[dependent_var_model]]) 
+  df_modelo[[dependent_var_model]] <- relevel(df_modelo[[dependent_var_model]], ref = "Adequado")
+} else {
+   cat("AVISO: Nível de referência 'Adequado' não encontrado na variável dependente após filtros. Verifique os dados.")
+}
+
+
+# --- 2. Verificar Dados e Ajustar Modelo ---
+# Verificar novamente se há dados suficientes e variabilidade após todos os filtros
+# (Adicionar um check para níveis únicos nas preditoras também seria bom)
+min_obs_needed <- length(explanatory_vars_model) * 15 # Regra de bolso (10-20 obs por preditor)
+
+if (n_distinct(df_modelo[[dependent_var_model]], na.rm = TRUE) < 2 || nrow(df_modelo) < min_obs_needed ) {
+  cat(paste0("Não há dados suficientes (N=", nrow(df_modelo), ", necessário ~", min_obs_needed, 
+             ") ou variabilidade na variável dependente para ajustar o modelo de regressão logística após a filtragem."))
+} else {
+  modelo_final_glm <- NULL
+  tryCatch({
+    # Criar a fórmula programaticamente
+    formula_modelo <- as.formula(paste(paste0("`", dependent_var_model, "`"), # Colocar crase se necessário
+                                       "~", 
+                                       paste(explanatory_vars_model, collapse = " + ")))
+    
+    modelo_final_glm <- glm(formula_modelo, family = binomial(link = "logit"), data = df_modelo)
+  }, error = function(e) {
+    cat(paste("\nErro ao ajustar o modelo de regressão GLM:", e$message, "\n"))
+    modelo_final_glm <- NULL 
+  })
+
+  # --- 3. Apresentar Resultados (se modelo ajustado) ---
+  if (!is.null(modelo_final_glm)) {
+    
+    # --- 3a. Tabela de Regressão (gtsummary para HTML) ---
+    cat("\n\n#### Tabela: Resultados da Regressão Logística Multivariada\n")
+    
+    tbl_reg <- NULL 
+    tryCatch({
+      tbl_reg <- tbl_regression(
+                  modelo_final_glm, 
+                  exponentiate = TRUE, 
+                  label = labels_pt # Aplicar labels em português do setup
+                 ) %>%
+        # modify_header(label = "**Variável**") %>% # Usa o label da lista agora
+        bold_labels() %>%
+        bold_p(t = 0.05) %>%
+        # Formatar OR e IC com 2 casas decimais
+        modify_fmt_fun(update = c(estimate, conf.low, conf.high) ~ function(x) style_number(x, digits = 2, decimal.mark=",")) %>%
+        modify_table_styling(columns = label, rows = label != "", footnote = "OR: Odds Ratio Ajustado; IC 95%: Intervalo de Confiança de 95%. Ref.: Categoria de Referência.") %>%
+        modify_header(estimate ~ "**OR (IC 95%)**") %>% # Ajustar header da estimativa
+        modify_column_hide(columns = c(ci)) # Esconder colunas separadas de CI se a coluna estimate já combina
+
+      # Print the gtsummary table directly for HTML output
+      print(tbl_reg) 
+      
+      # Salvar dados da tabela para Excel
+      salvar_tabela_xlsx(tbl_reg, "tabela_regressao_logistica_trat_inadequado")
+      
+    }, error = function(e){
+      cat(paste("\nErro ao gerar tabela de regressão com gtsummary:", e$message, "\n"))
+    })
+
+
+    # --- 3b. Forest Plot (ggplot usando broom e finalfit) ---
+    cat("\n\n#### Figura: Forest Plot dos Odds Ratios Ajustados\n")
+    
+    plot_forest <- NULL 
+    tryCatch({
+        # Usar finalfit::or_plot, passando labels explicitamente
+        plot_forest <- df_modelo %>%
+            or_plot(
+            dependent = dependent_var_model,
+            explanatory = explanatory_vars_model, 
+            # Passar lista de labels aqui para o plot
+            # Nota: os nomes em explanatory devem casar com as chaves na lista labels_pt
+            # Como usamos nomes com espaços/etc., precisamos de `backticks` no explanatory_vars
+            # E talvez ajustar a lista de labels para usar esses nomes com crases ou vice-versa
+            # Solução mais fácil: renomear as colunas em df_modelo antes de passar para or_plot
+            # OU criar uma lista de labels específica para or_plot
+            
+            # Vamos tentar criar labels específicos para or_plot
+             plot_opts = list(
+               table_text_size=3.5, 
+               plot_text_size=3.5,
+               remove_ref = TRUE, # Remover linha da ref p/ clareza no plot
+               breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 8, 16), # Melhorar escala
+               column_space = c(-0.6, 0, 0.6) # Ajustar espaço
+               )
+            # title não é um argumento direto de or_plot dentro de plot_opts, mas o plot em si pode ter título
+        ) +
+        # Adicionar título manualmente ao objeto ggplot retornado
+        labs(title = "Fatores Associados ao Tratamento Inadequado/Não Tratamento da Gestante") +
+        theme(plot.title = element_text(hjust = 0.5)) # Centralizar título do plot
+            
+    }, error = function(e) {
+        cat(paste("\nErro ao gerar forest plot com finalfit::or_plot:", e$message, "\n"))
+    })
+
+    if (!is.null(plot_forest)) {
+        print(plot_forest) # Print the ggplot object directly
+        salvar_grafico_html(plot_forest, "plot_forest_trat_inadequado", width = 10, height = 9) # Maior altura
+    } else {
+        cat("\nNão foi possível gerar o forest plot.\n")
+    }
+    
+  } else {
+    cat("\nO modelo de regressão GLM não pôde ser ajustado ou não produziu resultados válidos.\n")
+  }
+} # Fim do 'else' que verifica se há dados suficientes
+```
+
+A Tabela \@ref(tab:regressao) e a Figura \@ref(fig:forestplot) apresentam os resultados da regressão logística multivariada. Analisando os Odds Ratios (OR) ajustados e seus intervalos de confiança (IC 95%):
+
+*   **Faixa Etária:** Observou-se que gestantes na faixa etária de 40 anos ou mais apresentaram uma chance significativamente maior (OR = [Valor do OR para 40+], IC 95% = [Valor IC inf] - [Valor IC sup]) de tratamento inadequado/não tratamento em comparação com gestantes até 19 anos (grupo de referência), controlando pelos demais fatores.
+*   **Escolaridade:** Gestantes com escolaridade classificada como "Ignorada/Ausente" apresentaram uma chance significativamente menor (OR = [Valor OR Ignorado/Ausente], IC 95% = [Valor IC inf] - [Valor IC sup]) de tratamento inadequado/não tratamento em comparação com aquelas com "Médio Completo ou mais". Este resultado contraintuitivo pode indicar problemas no registro ou características não observadas neste grupo.
+*   **Classificação Clínica:** A classificação clínica mostrou forte associação. Gestantes com sífilis latente (OR = [Valor OR Latente]...) ou ignorada (OR = [Valor OR Ignorada]...) apresentaram chances drasticamente maiores de tratamento inadequado/não tratamento em comparação com sífilis primária/secundária. Já gestantes com sífilis terciária (OR = [Valor OR Terciária]...) tiveram chance significativamente menor, indicando que o tratamento para esta fase (quando corretamente identificado e registrado como 7.2M UI) foi considerado adequado pela nossa definição. *Nota: O OR extremamente alto e o IC para a categoria 'Ignorada' na sua tabela original indica instabilidade do modelo ou separação completa para essa categoria, devendo ser interpretado com extrema cautela ou a categoria removida/reagrupada.*
+*   **Outras Variáveis:** Raça/cor, idade gestacional no diagnóstico e ano da notificação não mostraram associação estatisticamente significativa com a adequação do tratamento neste modelo ajustado.
+
+É importante notar que categorias com poucos casos (como "Amarela/Indígena" ou "Sífilis Terciária") podem gerar estimativas de OR instáveis, refletidas em intervalos de confiança muito amplos.
+
+\newpage
+# Discussão
+
+Este estudo revelou um panorama complexo e preocupante da sífilis gestacional em Alagoas entre 2010 e 2022. O aumento expressivo nas notificações ao longo do período é um fenômeno nacional, possivelmente ligado à expansão da testagem rápida no pré-natal e à maior conscientização, mas que também pode indicar um aumento real da incidência que necessita de atenção contínua.
+
+O perfil sociodemográfico majoritariamente composto por mulheres pardas, jovens e com baixa escolaridade reforça a sífilis como um agravo associado a vulnerabilidades sociais, demandando políticas públicas intersetoriais.
+
+A análise espacial, mesmo limitada à contagem absoluta de casos, evidencia a concentração na capital e municípios maiores, mas ressalta a necessidade de investigar taxas de incidência para identificar áreas de maior risco relativo, o que requer integração com dados populacionais.
+
+As fragilidades no processo de diagnóstico e tratamento são evidentes. A não realização do teste confirmatório em cerca de 20% dos casos e, principalmente, a baixa proporção de tratamentos maternos considerados adequados segundo os critérios do PCDT (mesmo com as limitações da classificação baseada no SINAN) são alarmantes. A situação do tratamento de parceiros é ainda mais crítica, com mais da metade dos casos sem informação ou com parceiro não tratado, o que perpetua a cadeia de transmissão e aumenta o risco de reinfecção materna e sífilis congênita.
+
+A análise de regressão logística sugere que fatores como idade materna mais avançada (≥40 anos) e, paradoxalmente, classificação clínica latente ou ignorada estão associados a maior chance de tratamento inadequado ou não tratamento, enquanto escolaridade ignorada/ausente apareceu como fator protetor, indicando possíveis vieses de informação ou complexidades não capturadas. A forte associação com a classificação clínica reforça a importância do estadiamento correto para a prescrição adequada. *[Ajustar esta interpretação com base nos resultados finais e estáveis do seu modelo]*.
+
+**Limitações do Estudo:**
+Reiteram-se as limitações do uso de dados secundários (qualidade e completude), a simplificação na definição de tratamento adequado, e a ausência de cálculo de taxas de incidência por falta de dados populacionais integrados neste relatório. A interpretação dos resultados da regressão deve ser cautelosa devido à exclusão de casos com dados faltantes e potenciais instabilidades em categorias com poucos eventos.
+
+# Conclusão
+
+A sífilis gestacional persiste como um grave problema de saúde pública em Alagoas, com tendência de aumento nas notificações e falhas significativas no manejo clínico e de vigilância, especialmente no tratamento adequado da gestante e na abordagem dos parceiros.
+
+É imperativo fortalecer a qualidade do pré-natal, garantindo o diagnóstico oportuno, o estadiamento clínico correto, o tratamento adequado com Penicilina G Benzatina conforme o PCDT, e o registro completo e fidedigno das informações no SINAN. Estratégias inovadoras e eficazes para a abordagem e tratamento dos parceiros sexuais são urgentes. A capacitação contínua dos profissionais de saúde e a melhoria da qualidade dos dados são essenciais para o monitoramento e o enfrentamento efetivo da sífilis gestacional e congênita no estado.
+
+# Referências
+
+*   Brasil. Ministério da Saúde. Secretaria de Vigilância em Saúde e Ambiente. Departamento de HIV/Aids, Tuberculose, Hepatites Virais e Infecções Sexualmente Transmissíveis. Protocolo Clínico e Diretrizes Terapêuticas para Atenção Integral às Pessoas com Infecções Sexualmente Transmissíveis (IST). Brasília: Ministério da Saúde, 2022. (ou versão mais atual)
+*   DATASUS: Departamento de Informática do SUS ([https://datasus.saude.gov.br](https://datasus.saude.gov.br)). Acesso em: `r format(Sys.Date(), '%d/%m/%Y')`.
+*   Pacote `gtsummary`: Sjoberg DD, Whiting K, Curry M, Lavery JA, Larmarange J. Reproducible summary tables with the gtsummary package. R J 2021;13:570–80.
+*   Pacote `finalfit`: Harrison E, Drake T, Ots R (2023). finalfit: Quickly Create Elegant Regression Results Tables and Plots when Modelling. R package version 1.0.4.
